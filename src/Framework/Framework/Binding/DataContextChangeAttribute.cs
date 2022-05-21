@@ -34,6 +34,11 @@ namespace DotVVM.Framework.Binding
         /// Gets the extension parameters that should be made available to the bindings inside.
         public virtual IEnumerable<BindingExtensionParameter> GetExtensionParameters(ITypeDescriptor dataContext) => Enumerable.Empty<BindingExtensionParameter>();
 
+        /// <summary> Gets if the nested data context is available only on server or also client-side, controls the <see cref="DataContextStack.ServerSideOnly" /> property. `null` means that it should be inherited from the parent context. </summary>
+        public virtual bool? IsServerSideOnly(IDataContextStack controlContextStack, IAbstractControl control, IPropertyDescriptor? property = null) => null;
+        /// <summary> Gets if the nested data context is available only on server or also client-side, controls the <see cref="DataContextStack.ServerSideOnly" /> property. `null` means that it should be inherited from the parent context. </summary>
+        public virtual bool? IsServerSideOnly(DataContextStack controlContextStack, DotvvmBindableObject control, DotvvmProperty? property = null) => null;
+
         /// Gets a list of attributes that need to be resolved before this attribute is invoked.
         public virtual IEnumerable<string> PropertyDependsOn => Enumerable.Empty<string>();
     }

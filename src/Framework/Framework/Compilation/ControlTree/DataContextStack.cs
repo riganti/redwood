@@ -26,20 +26,23 @@ namespace DotVVM.Framework.Compilation.ControlTree
         public ImmutableArray<BindingExtensionParameter> ExtensionParameters { get; }
         /// <summary> Extension property resolvers added by data context change attributes. </summary>
         public ImmutableArray<Delegate> BindingPropertyResolvers { get; }
+        /// <summary> When true, this data context is not available client-side, because `DataContext={resource: ...}` was used in the markup. Only resource and command bindings can use this data context. </summary>
+        public bool ServerSideOnly { get; }
 
         private readonly int hashCode;
-
         private DataContextStack(Type type,
             DataContextStack? parent = null,
             IReadOnlyList<NamespaceImport>? imports = null,
             IReadOnlyList<BindingExtensionParameter>? extensionParameters = null,
-            IReadOnlyList<Delegate>? bindingPropertyResolvers = null)
+            IReadOnlyList<Delegate>? bindingPropertyResolvers = null,
+            bool serverSideOnly = false)
         {
             Parent = parent;
             DataContextType = type;
             NamespaceImports = imports?.ToImmutableArray() ?? parent?.NamespaceImports ?? ImmutableArray<NamespaceImport>.Empty;
             ExtensionParameters = extensionParameters?.ToImmutableArray() ?? ImmutableArray<BindingExtensionParameter>.Empty;
             BindingPropertyResolvers = bindingPropertyResolvers?.ToImmutableArray() ?? ImmutableArray<Delegate>.Empty;
+            ServerSideOnly = serverSideOnly;
 
             hashCode = ComputeHashCode();
         }
@@ -144,9 +147,7 @@ namespace DotVVM.Framework.Compilation.ControlTree
                     hashCode += parameter.GetHashCode();
                 }
 
-                hashCode = (hashCode * 397) ^ (Parent?.GetHashCode() ?? 0);
-                hashCode = (hashCode * 13) ^ (DataContextType?.FullName?.GetHashCode() ?? 0);
-                return hashCode;
+                return (hashCode, Parent, DataContextType?.FullName, ServerSideOnly).GetHashCode();
             }
         }
 
@@ -154,6 +155,7 @@ namespace DotVVM.Framework.Compilation.ControlTree
         {
             string?[] features = new [] {
                 $"type={this.DataContextType.ToCode()}",
+                this.ServerSideOnly ? "server-side-only" : null,
                 this.NamespaceImports.Any() ? "imports=[" + string.Join(", ", this.NamespaceImports) + "]" : null,
                 this.ExtensionParameters.Any() ? "ext=[" + string.Join(", ", this.ExtensionParameters.Select(e => e.Identifier + ": " + e.ParameterType.CSharpName)) + "]" : null,
                 this.BindingPropertyResolvers.Any() ? "resolvers=[" + string.Join(", ", this.BindingPropertyResolvers.Select(s => s.Method)) + "]" : null,
@@ -168,9 +170,10 @@ namespace DotVVM.Framework.Compilation.ControlTree
             DataContextStack? parent = null,
             IReadOnlyList<NamespaceImport>? imports = null,
             IReadOnlyList<BindingExtensionParameter>? extensionParameters = null,
-            IReadOnlyList<Delegate>? bindingPropertyResolvers = null)
+            IReadOnlyList<Delegate>? bindingPropertyResolvers = null,
+            bool serverSideOnly = false)
         {
-            var dcs = new DataContextStack(type, parent, imports, extensionParameters, bindingPropertyResolvers);
+            var dcs = new DataContextStack(type, parent, imports, extensionParameters, bindingPropertyResolvers, serverSideOnly);
             return dcs;// internCache.GetValue(dcs, _ => dcs);
         }
 

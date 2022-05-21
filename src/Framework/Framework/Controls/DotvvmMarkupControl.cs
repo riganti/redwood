@@ -74,6 +74,17 @@ namespace DotVVM.Framework.Controls
         {
             var properties = new KnockoutBindingGroup();
             var usedProperties = GetValue<ControlUsedPropertiesInfo>(Internal.UsedPropertiesInfoProperty);
+
+            if (usedProperties?.UsesViewModelClientSide == true)
+            {
+                // check that the markup control isn't used in resource-binding only data context
+                var dataContext = this.GetDataContextType();
+                if (dataContext?.ServerSideOnly == true)
+                {
+                    throw new DotvvmControlException(this, $"Markup control '{GetType().Name}' cannot be used in resource-binding only data context, because it uses value bindings on the data context.");
+                }
+            }
+
             foreach (var p in usedProperties?.ClientSideUsedProperties ?? GetDeclaredProperties())
             {
                 if (p.DeclaringType.IsAssignableFrom(typeof(DotvvmMarkupControl)))
