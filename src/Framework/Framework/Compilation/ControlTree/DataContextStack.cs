@@ -183,7 +183,8 @@ namespace DotVVM.Framework.Compilation.ControlTree
             DataContextStack? parent = null,
             IReadOnlyList<NamespaceImport>? imports = null,
             IReadOnlyList<BindingExtensionParameter>? extensionParameters = null,
-            IReadOnlyList<Delegate>? bindingPropertyResolvers = null)
+            IReadOnlyList<Delegate>? bindingPropertyResolvers = null,
+            bool serverSideOnly = false)
         {
             var indexParameters = new CollectionElementDataContextChangeAttribute(0).GetExtensionParameters(new ResolvedTypeDescriptor(elementType.MakeArrayType()));
             extensionParameters = extensionParameters is null ? indexParameters.ToArray() : extensionParameters.Concat(indexParameters).ToArray();
@@ -191,7 +192,8 @@ namespace DotVVM.Framework.Compilation.ControlTree
                 elementType, parent,
                 imports: imports,
                 extensionParameters: extensionParameters,
-                bindingPropertyResolvers: bindingPropertyResolvers
+                bindingPropertyResolvers: bindingPropertyResolvers,
+                serverSideOnly: serverSideOnly
             );
         }
     }

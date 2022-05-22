@@ -14,6 +14,8 @@ using DotVVM.Framework.Compilation.ControlTree;
 using System.Linq.Expressions;
 using DotVVM.Framework.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using FastExpressionCompiler;
+using DotVVM.Framework.Compilation;
 
 namespace DotVVM.Framework.Controls
 {
@@ -55,29 +57,46 @@ namespace DotVVM.Framework.Controls
         /// <summary>
         /// Gets the data source binding.
         /// </summary>
-        protected IValueBinding GetDataSourceBinding()
+        protected IStaticValueBinding GetDataSourceBinding()
         {
-            var binding = GetValueBinding(DataSourceProperty);
-            if (binding == null)
+            var binding = GetBinding(DataSourceProperty);
+            if (binding is null)
             {
                 throw new DotvvmControlException(this, $"The DataSource property of the '{GetType().Name}' control must be set!");
             }
-            return binding;
+            if (binding is not IStaticValueBinding resourceBinding)
+                throw new BindingHelper.BindingNotSupportedException(binding) { RelatedControl = this };
+            return resourceBinding;
         }
 
         protected IValueBinding GetItemBinding()
         {
-            return (IValueBinding)GetForeachDataBindExpression().GetProperty<DataSourceCurrentElementBinding>().Binding;
+            return GetForeachDataBindExpression().GetProperty<DataSourceCurrentElementBinding>().Binding as IValueBinding ??
+                throw new DotvvmControlException(this, $"The Item property of the '{GetType().Name}' control must be set to a value binding!");
         }
 
         public IEnumerable? GetIEnumerableFromDataSource() =>
             (IEnumerable?)GetForeachDataBindExpression().Evaluate(this);
 
-        protected IValueBinding GetForeachDataBindExpression() =>
-            (IValueBinding)GetDataSourceBinding().GetProperty<DataSourceAccessBinding>().Binding;
+        protected IStaticValueBinding GetForeachDataBindExpression() =>
+            (IStaticValueBinding)GetDataSourceBinding().GetProperty<DataSourceAccessBinding>().Binding;
 
-        protected string GetPathFragmentExpression() =>
-            GetDataSourceBinding().GetKnockoutBindingExpression(this);
+        protected string? TryGetKnockoutForeachingExpression(bool unwrapped = false) =>
+            (GetForeachDataBindExpression() as IValueBinding)?.GetKnockoutBindingExpression(this, unwrapped);
+
+        protected string GetPathFragmentExpression()
+        {
+            var binding = GetDataSourceBinding();
+            var stringified =
+                binding.GetProperty<OriginalStringBindingProperty>(ErrorHandlingMode.ReturnNull)?.Code.Trim() ??
+                binding.GetProperty<KnockoutExpressionBindingProperty>(ErrorHandlingMode.ReturnNull)?.Code.FormatKnockoutScript(this, binding) ??
+                binding.GetProperty<ParsedExpressionBindingProperty>(ErrorHandlingMode.ReturnNull)?.Expression.ToCSharpString();
+
+            if (stringified is null)
+                throw new DotvvmControlException(this, $"Can't create path fragment from binding {binding}, it does not have OriginalString, ParsedExpression, nor KnockoutExpression property.");
+        
+            return stringified;
+        }
 
         [ApplyControlStyle]
         public static void OnCompilation(ResolvedControl control, BindingCompilationService bindingService)
@@ -87,9 +106,10 @@ namespace DotVVM.Framework.Controls
             if (!(dataSourceProperty is ResolvedPropertyBinding dataSourceBinding)) return;
 
             var dataContext = dataSourceBinding.Binding.Binding.GetProperty<CollectionElementDataContextBindingProperty>().DataContext;
+            var bindingType = dataContext.ServerSideOnly ? BindingParserOptions.Resource : BindingParserOptions.Value;
 
             control.SetProperty(new ResolvedPropertyBinding(Internal.CurrentIndexBindingProperty,
-                new ResolvedBinding(bindingService, new Compilation.BindingParserOptions(typeof(ValueBindingExpression)), dataContext,
+                new ResolvedBinding(bindingService, bindingType, dataContext,
                 parsedExpression: CreateIndexBindingExpression(dataContext))));
         }
 

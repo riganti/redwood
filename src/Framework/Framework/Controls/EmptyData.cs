@@ -49,14 +49,15 @@ namespace DotVVM.Framework.Controls
 
         protected override void RenderControl(IHtmlWriter writer, IDotvvmRequestContext context)
         {
+            var dataSourceBinding = GetValueBinding(DataSourceProperty);
             TagName = WrapperTagName;
-            // if RenderOnServer && DataSource is not empty then don't render anything
-            if (!RenderOnServer || GetIEnumerableFromDataSource()?.GetEnumerator()?.MoveNext() != true)
+            // if DataSource is resource binding && DataSource is not empty then don't render anything
+            if (dataSourceBinding is {} || GetIEnumerableFromDataSource()?.GetEnumerator()?.MoveNext() != true)
             {
-                if (!RenderOnServer)
+                if (dataSourceBinding is {})
                 {
-                    var visibleBinding = GetBinding(DataSourceProperty)
-                        .NotNull("DataSource property must contain a binding")
+                    var visibleBinding =
+                        dataSourceBinding
                         .GetProperty<DataSourceLengthBinding>().Binding
                         .GetProperty<IsMoreThanZeroBindingProperty>().Binding
                         .GetProperty<NegatedBindingExpression>().Binding

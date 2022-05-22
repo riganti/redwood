@@ -3,7 +3,7 @@
 <head></head>
 <body>
     <!-- empty data, server -->
-    <!-- ko if: int() > 0 --><div>
+    <!-- ko if: int() > 0 && !(EmptyDataSet()?.Items()?.length > 0) --><div>
         Data is empty
     </div><!-- /ko -->
     <!-- empty data, client -->
@@ -11,7 +11,9 @@
         Data is empty
     </div><!-- /ko -->
     <!-- non empty data, server -->
-    
+    <!-- ko if: int() > 0 && !(Customers()?.Items()?.length > 0) --><div>
+        Data is empty
+    </div><!-- /ko -->
     <!-- non empty data, client -->
     <!-- ko if: int() > 0 && !(Customers()?.Items()?.length > 0) --><div>
         Data is empty

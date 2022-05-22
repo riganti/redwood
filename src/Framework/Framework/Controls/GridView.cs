@@ -289,7 +289,7 @@ namespace DotVVM.Framework.Controls
 
             var dataContextStack = this.GetDataContextType()!;
             var commandType = LoadData is { } ? GridViewDataSetCommandType.LoadDataDelegate : GridViewDataSetCommandType.Default;
-            var gridViewBindings = gridViewDataSetBindingProvider.GetGridViewBindings(dataContextStack, GetDataSourceBinding(), commandType);
+            var gridViewBindings = gridViewDataSetBindingProvider.GetGridViewBindings(dataContextStack, (IValueBinding)GetDataSourceBinding(), commandType);
 
             return (gridViewBindings, SortChanged is { } ? BuildDefaultSortCommandBinding() : null);
         }
@@ -471,7 +471,7 @@ namespace DotVVM.Framework.Controls
             head?.Render(writer, context);
 
             // render body
-            var foreachBinding = GetForeachDataBindExpression().GetKnockoutBindingExpression(this);
+            var foreachBinding = TryGetKnockoutForeachingExpression().NotNull("GridView does not support DataSource={resource: ...} at this moment.");
             if (RenderOnServer)
             {
                 writer.AddKnockoutDataBind("dotvvm-SSR-foreach", "{data:" + foreachBinding + "}");
@@ -556,9 +556,10 @@ namespace DotVVM.Framework.Controls
             var userColumnMappingService = context.Services.GetRequiredService<UserColumnMappingCache>();
             var mapping = userColumnMappingService.GetMapping(itemType!);
             var mappingJson = JsonSerializer.Serialize(mapping, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+            var dataBinding = (GetDataSourceBinding() as IValueBinding).NotNull("GridView does not support DataSource={resource: ...} at this moment.");
 
             var helperBinding = new KnockoutBindingGroup();
-            helperBinding.Add("dataSet", GetDataSourceBinding().GetKnockoutBindingExpression(this, unwrapped: true));
+            helperBinding.Add("dataSet", dataBinding.GetKnockoutBindingExpression(this, unwrapped: true));
             helperBinding.Add("mapping", mappingJson);
             if (this.LoadData is { } loadData)
             {

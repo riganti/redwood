@@ -68,6 +68,46 @@ namespace DotVVM.Framework.Tests.ControlTests
             Assert.AreEqual((string)r.ViewModelJson["CommandData"], "Server o. Customer");
         }
 
+        [TestMethod]
+        public async Task Repeater()
+        {
+            var r = await cth.RunPage(typeof(TestViewModel), @"
+
+                    <!-- without wrapper tag -->
+                    <dot:Repeater DataSource={resource: Customers.Items} RenderWrapperTag=false>
+                        <EmptyDataTemplate> This would be here if the Customers.Items were empty </EmptyDataTemplate>
+                        <SeparatorTemplate>
+                            -------------------
+                        </SeparatorTemplate>
+                        <span class=name data-id={resource: Id}>{{resource: Name}}</span>
+
+                        <span>{{value: _parent.CommandData}}</span>
+
+                        <dot:Button Click={command: _root.TestMethod(Name)} />
+                    </dot:Repeater>
+
+                    <!-- with wrapper tag -->
+                    <dot:Repeater DataSource={resource: Customers} WrapperTagName=div>
+                        <EmptyDataTemplate> This would be here if the Customers.Items were empty </EmptyDataTemplate>
+                        <SeparatorTemplate>
+                            -------------------
+                        </SeparatorTemplate>
+                        <span class=name data-id={resource: Id}>{{resource: Name}}</span>
+
+                        <span>{{value: _parent.CommandData}}</span>
+                    </dot:Repeater>
+               "
+            );
+
+            check.CheckString(r.FormattedHtml, fileExtension: "html");
+
+            await r.RunCommand("_root.TestMethod(Name)", x => x is TestViewModel.CustomerData { Id: 1 });
+            Assert.AreEqual((string)r.ViewModelJson["CommandData"], "One");
+
+            await r.RunCommand("_root.TestMethod(Name)", x => x is TestViewModel.CustomerData { Id: 2 });
+            Assert.AreEqual((string)r.ViewModelJson["CommandData"], "Two");
+        }
+
         public class TestViewModel: DotvvmViewModelBase
         {
             public string NullableString { get; } = null;

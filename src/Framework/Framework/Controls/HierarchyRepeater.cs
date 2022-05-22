@@ -186,7 +186,7 @@ namespace DotVVM.Framework.Controls
                 Children.Add(clientRootLevel);
                 clientRootLevel.Children.Add(new HierarchyRepeaterLevel {
                     IsRoot = true,
-                    ForeachExpression = GetForeachDataBindExpression().GetKnockoutBindingExpression(this),
+                    ForeachExpression = this.TryGetKnockoutForeachingExpression(),
                     ItemTemplateId = clientItemTemplateId,
                 });
             }

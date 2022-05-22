@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
+using DotVVM.Framework.Utils;
 
 namespace DotVVM.Framework.Controls
 {
@@ -146,16 +147,19 @@ namespace DotVVM.Framework.Controls
         {
             TagName = WrapperTagName;
 
-            var (bindingName, bindingValue) = RenderOnServer ?
-                                              ("dotvvm-SSR-foreach", GetServerSideForeachBindingGroup()) :
-                                              GetForeachKnockoutBindingGroup(context);
-            if (RenderWrapperTag)
+            if (GetValueBinding(DataSourceProperty) is {})
             {
-                writer.AddKnockoutDataBind(bindingName, bindingValue);
-            }
-            else
-            {
-                writer.WriteKnockoutDataBindComment(bindingName, bindingValue.ToString());
+                var (bindingName, bindingValue) = RenderOnServer ?
+                                                ("dotvvm-SSR-foreach", GetServerSideForeachBindingGroup()) :
+                                                GetForeachKnockoutBindingGroup(context);
+                if (RenderWrapperTag)
+                {
+                    writer.AddKnockoutDataBind(bindingName, bindingValue);
+                }
+                else
+                {
+                    writer.WriteKnockoutDataBindComment(bindingName, bindingValue.ToString());
+                }
             }
 
             if (RenderWrapperTag)
@@ -166,7 +170,7 @@ namespace DotVVM.Framework.Controls
 
         private KnockoutBindingGroup GetServerSideForeachBindingGroup() =>
             new KnockoutBindingGroup {
-                { "data", GetForeachDataBindExpression().GetKnockoutBindingExpression(this) }
+                { "data", TryGetKnockoutForeachingExpression().NotNull() }
             };
 
         private (string bindingName, KnockoutBindingGroup bindingValue) GetForeachKnockoutBindingGroup(IDotvvmRequestContext context)
@@ -175,7 +179,7 @@ namespace DotVVM.Framework.Controls
             var value = new KnockoutBindingGroup();
 
 
-            var javascriptDataSourceExpression = GetForeachDataBindExpression().GetKnockoutBindingExpression(this);
+            var javascriptDataSourceExpression = TryGetKnockoutForeachingExpression().NotNull();
             value.Add(
                 useTemplate ? "foreach" : "data",
                 javascriptDataSourceExpression);
@@ -205,7 +209,6 @@ namespace DotVVM.Framework.Controls
         /// </summary>
         protected override void RenderContents(IHtmlWriter writer, IDotvvmRequestContext context)
         {
-            Debug.Assert((clientSideTemplate == null) == this.RenderOnServer);
             if (clientSideTemplate == null)
             {
                 Debug.Assert(clientSeparator == null);
@@ -224,7 +227,7 @@ namespace DotVVM.Framework.Controls
             {
                 base.RenderEndTag(writer, context);
             }
-            else
+            else if (GetValueBinding(DataSourceProperty) is {})
             {
                 writer.WriteKnockoutDataBindEndComment();
             }
@@ -232,11 +235,10 @@ namespace DotVVM.Framework.Controls
             emptyDataContainer?.Render(writer, context);
         }
 
-        private DotvvmControl CreateEmptyItem(IDotvvmRequestContext context)
+        private DotvvmControl CreateEmptyItem(IDotvvmRequestContext context,  IStaticValueBinding dataSourceBinding)
         {
             if (emptyDataContainer == null)
             {
-                var dataSourceBinding = GetDataSourceBinding();
                 emptyDataContainer = new EmptyData();
                 emptyDataContainer.SetValue(EmptyData.RenderWrapperTagProperty, GetValueRaw(RenderWrapperTagProperty));
                 emptyDataContainer.SetValue(EmptyData.WrapperTagNameProperty, GetValueRaw(WrapperTagNameProperty));
@@ -249,13 +251,13 @@ namespace DotVVM.Framework.Controls
         }
 
         private ConditionalWeakTable<object, DataItemContainer> childrenCache = new ConditionalWeakTable<object, DataItemContainer>();
-        private DotvvmControl AddItem(IList<DotvvmControl> c, IDotvvmRequestContext context, object? item = null, int? index = null, bool allowMemoizationRetrieve = false, bool allowMemoizationStore = false)
+        private DotvvmControl AddItem(IList<DotvvmControl> c, IDotvvmRequestContext context, object? item = null, int? index = null, bool serverOnly = false, bool allowMemoizationRetrieve = false, bool allowMemoizationStore = false)
         {
             if (allowMemoizationRetrieve && item != null && childrenCache.TryGetValue(item, out var container2) && container2.Parent == null)
             {
                 Debug.Assert(item == container2.GetValueRaw(DataContextProperty));
                 c.Add(container2);
-                SetUpServerItem(context, item, (int)index!, container2);
+                SetUpServerItem(context, item, (int)index!, serverOnly, container2);
                 return container2;
             }
 
@@ -264,11 +266,12 @@ namespace DotVVM.Framework.Controls
             c.Add(container);
             if (item == null && index == null)
             {
+                Debug.Assert(!serverOnly);
                 SetUpClientItem(context, container);
             }
             else
             {
-                SetUpServerItem(context, item!, (int)index!, container);
+                SetUpServerItem(context, item!, (int)index!, serverOnly, container);
             }
 
             ItemTemplate.BuildContent(context, container);
@@ -303,16 +306,20 @@ namespace DotVVM.Framework.Controls
             clientSeparator = null;
             clientSideTemplate = null;
 
-            if (DataSource != null)
+            var dataSource = GetIEnumerableFromDataSource();
+            var dataSourceBinding = GetDataSourceBinding();
+            var serverOnly = dataSourceBinding is not IValueBinding;
+
+            if (dataSource != null)
             {
                 var index = 0;
-                foreach (var item in GetIEnumerableFromDataSource()!)
+                foreach (var item in dataSource)
                 {
                     if (SeparatorTemplate != null && index > 0)
                     {
                         AddSeparator(Children, context);
                     }
-                    AddItem(Children, context, item, index,
+                    AddItem(Children, context, item, index, serverOnly,
                         allowMemoizationRetrieve: context.RequestType == DotvvmRequestType.Command && !memoizeReferences, // on GET request we are not initializing the Repeater twice
                         allowMemoizationStore: memoizeReferences
                     );
@@ -320,7 +327,7 @@ namespace DotVVM.Framework.Controls
                 }
             }
 
-            if (renderClientTemplate)
+            if (renderClientTemplate && !serverOnly)
             {
                 if (SeparatorTemplate != null)
                 {
@@ -332,7 +339,7 @@ namespace DotVVM.Framework.Controls
 
             if (EmptyDataTemplate != null)
             {
-                CreateEmptyItem(context);
+                CreateEmptyItem(context, dataSourceBinding);
             }
         }
 
@@ -343,10 +350,11 @@ namespace DotVVM.Framework.Controls
             container.SetValue(Internal.ClientIDFragmentProperty, this.GetIndexBinding(context));
         }
 
-        private void SetUpServerItem(IDotvvmRequestContext context, object item, int index, DataItemContainer container)
+        private void SetUpServerItem(IDotvvmRequestContext context, object item, int index, bool serverOnly, DataItemContainer container)
         {
             container.DataItemIndex = index;
             container.DataContext = item;
+            container.RenderItemBinding = !serverOnly;
             container.SetValue(Internal.PathFragmentProperty, GetPathFragmentExpression() + "/[" + index + "]");
             container.ID = index.ToString();
         }
