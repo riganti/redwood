@@ -10,7 +10,7 @@ using DotVVM.Framework.Tests.Binding;
 using DotVVM.Framework.ViewModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using DotVVM.Framework.Testing;
-using System.Security.Claims;
+using DotVVM.Framework.Compilation.Styles;
 
 namespace DotVVM.Framework.Tests.ControlTests
 {
@@ -18,6 +18,8 @@ namespace DotVVM.Framework.Tests.ControlTests
     public class ResourceDataContextTests
     {
         static readonly ControlTestHelper cth = new ControlTestHelper(config: config => {
+            _ = Controls.Repeater.RenderAsNamedTemplateProperty;
+            config.Styles.Register<Repeater>().SetProperty(r => r.RenderAsNamedTemplate, false, StyleOverrideOptions.Ignore);
         });
         OutputChecker check = new OutputChecker("testoutputs");
 
@@ -82,8 +84,6 @@ namespace DotVVM.Framework.Tests.ControlTests
                         <span class=name data-id={resource: Id}>{{resource: Name}}</span>
 
                         <span>{{value: _parent.CommandData}}</span>
-
-                        <dot:Button Click={command: _root.TestMethod(Name)} />
                     </dot:Repeater>
 
                     <!-- with wrapper tag -->
@@ -100,12 +100,42 @@ namespace DotVVM.Framework.Tests.ControlTests
             );
 
             check.CheckString(r.FormattedHtml, fileExtension: "html");
+        }
+
+        [TestMethod]
+        public async Task RepeaterWithCommand()
+        {
+            var r = await cth.RunPage(typeof(TestViewModel), @"
+                    <dot:Repeater DataSource={resource: Customers.Items}>
+                        <dot:Button Click={command: _root.TestMethod(Name)} />
+                    </dot:Repeater>
+               "
+            );
 
             await r.RunCommand("_root.TestMethod(Name)", x => x is TestViewModel.CustomerData { Id: 1 });
             Assert.AreEqual((string)r.ViewModelJson["CommandData"], "One");
 
             await r.RunCommand("_root.TestMethod(Name)", x => x is TestViewModel.CustomerData { Id: 2 });
             Assert.AreEqual((string)r.ViewModelJson["CommandData"], "Two");
+        }
+
+        [TestMethod]
+        public async Task DataContextRevert()
+        {
+            // revert client-side data context by DataContext={value: _root...}
+            var r = await cth.RunPage(typeof(TestViewModel), @"
+
+                    <dot:Repeater DataSource={resource: Customers.Items} RenderWrapperTag=false>
+                        <span class=name data-id={resource: Id}>{{resource: Name}}</span>
+
+                        <dot:Repeater DataSource={value: _root.FewStrings}>
+                            {{value: _root.StringPrefix + _this}}
+                        </dot:Repeater>
+                    </dot:Repeater>
+               "
+            );
+
+            check.CheckString(r.FormattedHtml, fileExtension: "html");
         }
 
         public class TestViewModel: DotvvmViewModelBase
@@ -126,6 +156,10 @@ namespace DotVVM.Framework.Tests.ControlTests
                     new CustomerData(2, "Two")
                 }
             };
+
+            public List<string> FewStrings { get; set; } = new List<string>() { "Hi!", "Ahoj!" };
+
+            public string StringPrefix { get; set; } = "...";
 
             public UploadedFilesCollection Files { get; set; } = new UploadedFilesCollection();
 
