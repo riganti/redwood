@@ -9,29 +9,34 @@
             color: maroon;
             text-decoration: line-through;
         }
+        .alt-row {
+            background-color: #FFFFBB;
+        }
     </style>
-    <dot:RequiredResource Name="globalize:cs-CZ" />
 </head>
 <body>
     <div class="container">
         <h1>Task List</h1>
 
+        <form>
         <fieldset data-testattribute>
             <legend>Add Task</legend>
 
-            <p>Title: <dot:TextBox Text="{value: NewTaskTitle}" /></p>
-            <p><dot:Button Text="Create" Click="{command: AddTask()}" /></p>
+            <p>Title: <dot:TextBox Text={value: NewTaskTitle} /></p>
+            <p><dot:Button Text="Create" Click={command: AddTask()} IsSubmitButton /></p>
         </fieldset>
+        </form>
+
         <p>&nbsp;</p>
 
         <table class="table">
-            <dot:Repeater DataSource="{value: Tasks}" WrapperTagName="tbody" RenderSettings.Mode="Server" PostBack.Update="true">
-                <tr class="{value: IsCompleted ? ' completed' : '' }">
-                    <td>{{value: Title}}</td>
+            <dot:Repeater DataSource={resource: Tasks} WrapperTagName="tbody" PostBack.Update>
+                <tr class-completed={resource: IsCompleted} Class-alt-row="{resource: _collection.IsEven}">
+                    <td>{{resource: Title}}</td>
                     <td>
                         <dot:LinkButton Text="done"
-                                       Click="{command: _parent.CompleteTask(TaskId)}"
-                                       Visible="{value: !IsCompleted}" />
+                                        Click={command: _parent.CompleteTask(TaskId)}
+                                        Visible={resource: !IsCompleted} />
                     </td>
                 </tr>
             </dot:Repeater>
