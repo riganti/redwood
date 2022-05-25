@@ -977,7 +977,7 @@
         "onlyHardcoded": true
       },
       "ItemChildrenBinding": {
-        "type": "DotVVM.Framework.Binding.Expressions.IValueBinding`1[[System.Collections.Generic.IEnumerable`1[[System.Object, CoreLibrary]], CoreLibrary]], DotVVM.Framework",
+        "type": "DotVVM.Framework.Binding.Expressions.IStaticValueBinding`1[[System.Collections.Generic.IEnumerable`1[[System.Object, CoreLibrary]], CoreLibrary]], DotVVM.Framework",
         "dataContextChange": [
           {
             "$type": "DotVVM.Framework.Binding.CollectionElementDataContextChangeAttribute",

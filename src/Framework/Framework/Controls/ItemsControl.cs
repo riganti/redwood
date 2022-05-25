@@ -81,7 +81,7 @@ namespace DotVVM.Framework.Controls
         protected IStaticValueBinding GetForeachDataBindExpression() =>
             (IStaticValueBinding)GetDataSourceBinding().GetProperty<DataSourceAccessBinding>().Binding;
 
-        protected string? TryGetKnockoutForeachingExpression(bool unwrapped = false) =>
+        protected string? TryGetKnockoutForeachExpression(bool unwrapped = false) =>
             (GetForeachDataBindExpression() as IValueBinding)?.GetKnockoutBindingExpression(this, unwrapped);
 
         protected string GetPathFragmentExpression()
@@ -97,6 +97,10 @@ namespace DotVVM.Framework.Controls
         
             return stringified;
         }
+
+        /// <summary> Returns data context which is expected in the ItemTemplate </summary>
+        protected DataContextStack GetChildDataContext() =>
+            GetDataSourceBinding().GetProperty<CollectionElementDataContextBindingProperty>().DataContext;
 
         [ApplyControlStyle]
         public static void OnCompilation(ResolvedControl control, BindingCompilationService bindingService)
@@ -128,7 +132,7 @@ namespace DotVVM.Framework.Controls
             {
                 // slower path: create the _index binding at runtime
                 var bindingService = context.Services.GetRequiredService<BindingCompilationService>();
-                var dataContext = GetDataSourceBinding().GetProperty<CollectionElementDataContextBindingProperty>().DataContext;
+                var dataContext = GetChildDataContext();
                 return bindingService.Cache.CreateCachedBinding("_index", new object[] { dataContext }, () =>
                     new ValueBindingExpression<int>(bindingService, new object?[] {
                         dataContext,

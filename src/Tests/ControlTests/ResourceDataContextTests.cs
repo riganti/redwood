@@ -138,13 +138,40 @@ namespace DotVVM.Framework.Tests.ControlTests
             check.CheckString(r.FormattedHtml, fileExtension: "html");
         }
 
+        [TestMethod]
+        public async Task HierarchyRepeater_SimpleTemplate()
+        {
+            var r = await cth.RunPage(typeof(TestViewModel), @"
+
+                    <!-- without wrapper tags -->
+                    <dot:HierarchyRepeater DataSource={resource: Customers.Items}
+                                           ItemChildrenBinding={resource: NextLevelCustomers}
+                                           RenderWrapperTag=false>
+                        <EmptyDataTemplate> This would be here if the Customers.Items were empty </EmptyDataTemplate>
+                        <span data-id={resource: Id}>{{resource: Name}}</span>
+                    </dot:HierarchyRepeater>
+
+                    <!-- with wrapper tags -->
+                    <dot:HierarchyRepeater DataSource={resource: Customers.Items}
+                                           ItemChildrenBinding={resource: NextLevelCustomers}
+                                           LevelWrapperTagName=ul
+                                           ItemWrapperTagName=li>
+                        <span data-id={resource: Id}>{{resource: Name}}</span>
+                    </dot:HierarchyRepeater>
+               "
+            );
+
+            check.CheckString(r.FormattedHtml, fileExtension: "html");
+        }
+
+
         public class TestViewModel: DotvvmViewModelBase
         {
             public string NullableString { get; } = null;
 
 
             [Bind(Direction.None)]
-            public CustomerData ServerOnlyCustomer { get; set; } = new CustomerData(100, "Server o. Customer");
+            public CustomerData ServerOnlyCustomer { get; set; } = new CustomerData(100, "Server o. Customer", new());
 
             public GridViewDataSet<CustomerData> Customers { get; set; } = new GridViewDataSet<CustomerData>() {
                 RowEditOptions = {
@@ -152,8 +179,12 @@ namespace DotVVM.Framework.Tests.ControlTests
                     PrimaryKeyPropertyName = nameof(CustomerData.Id)
                 },
                 Items = {
-                    new CustomerData(1, "One"),
-                    new CustomerData(2, "Two")
+                    new CustomerData(1, "One", new()),
+                    new CustomerData(2, "Two", new() {
+                        new CustomerData(21, "first pyramid customer", new() {
+                            new CustomerData(211, "second pyramid customer", new())
+                        })
+                    })
                 }
             };
 
@@ -167,7 +198,8 @@ namespace DotVVM.Framework.Tests.ControlTests
                 int Id,
                 [property: Required]
                 string Name,
-                bool Enabled = true
+                // software for running MLM 😂
+                List<CustomerData> NextLevelCustomers
             );
 
             public string CommandData { get; set; }

@@ -170,7 +170,7 @@ namespace DotVVM.Framework.Controls
 
         private KnockoutBindingGroup GetServerSideForeachBindingGroup() =>
             new KnockoutBindingGroup {
-                { "data", TryGetKnockoutForeachingExpression().NotNull() }
+                { "data", TryGetKnockoutForeachExpression().NotNull() }
             };
 
         private (string bindingName, KnockoutBindingGroup bindingValue) GetForeachKnockoutBindingGroup(IDotvvmRequestContext context)
@@ -179,7 +179,7 @@ namespace DotVVM.Framework.Controls
             var value = new KnockoutBindingGroup();
 
 
-            var javascriptDataSourceExpression = TryGetKnockoutForeachingExpression().NotNull();
+            var javascriptDataSourceExpression = TryGetKnockoutForeachExpression().NotNull();
             value.Add(
                 useTemplate ? "foreach" : "data",
                 javascriptDataSourceExpression);

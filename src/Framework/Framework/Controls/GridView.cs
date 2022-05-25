@@ -471,7 +471,7 @@ namespace DotVVM.Framework.Controls
             head?.Render(writer, context);
 
             // render body
-            var foreachBinding = TryGetKnockoutForeachingExpression().NotNull("GridView does not support DataSource={resource: ...} at this moment.");
+            var foreachBinding = TryGetKnockoutForeachExpression().NotNull("GridView does not support DataSource={resource: ...} at this moment.");
             if (RenderOnServer)
             {
                 writer.AddKnockoutDataBind("dotvvm-SSR-foreach", "{data:" + foreachBinding + "}");
