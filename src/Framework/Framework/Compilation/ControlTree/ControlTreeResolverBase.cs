@@ -15,6 +15,7 @@ using DotVVM.Framework.Compilation.Binding;
 using DotVVM.Framework.Compilation.ViewCompiler;
 using DotVVM.Framework.Configuration;
 using DotVVM.Framework.Binding.Expressions;
+using FastExpressionCompiler;
 
 namespace DotVVM.Framework.Compilation.ControlTree
 {
@@ -407,12 +408,19 @@ namespace DotVVM.Framework.Compilation.ControlTree
                         attribute.ValueNode.AddError($"The property '{ property.FullName }' cannot contain {bindingNode.Name} binding.");
                 }
                 var binding = ProcessBinding(bindingNode, dataContext, property);
+                if (property.IsBindingProperty)
+                {
+                    // check that binding types are compatible
+                    if (!property.PropertyType.IsAssignableFrom(ResolvedTypeDescriptor.Create(binding.BindingType)))
+                    {
+                        attribute.ValueNode.AddError($"The property '{property.FullName}' cannot contain a binding of type '{binding.BindingType}'!");
+                    }
+                }
                 var bindingProperty = treeBuilder.BuildPropertyBinding(property, binding, attribute);
                 if (!treeBuilder.AddProperty(control, bindingProperty, out var error)) attribute.AddError(error);
             }
             else
             {
-                // hard-coded value in markup
                 var textValue = (DothtmlValueTextNode)attribute.ValueNode;
 
                 try

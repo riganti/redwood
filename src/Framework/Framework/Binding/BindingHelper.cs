@@ -375,10 +375,12 @@ namespace DotVVM.Framework.Binding
             return f => cache.GetOrAdd(f, func);
         }
 
-        public static IValueBinding GetThisBinding(this DotvvmBindableObject obj)
+        public static IStaticValueBinding GetThisBinding(this DotvvmBindableObject obj)
         {
-            var dataContext = obj.GetValueBinding(DotvvmBindableObject.DataContextProperty);
-            return (IValueBinding)dataContext!.GetProperty<ThisBindingProperty>().binding;
+            var dataContext = (IStaticValueBinding?)obj.GetBinding(DotvvmBindableObject.DataContextProperty);
+            if (dataContext is null)
+                throw new InvalidOperationException("DataContext must be set to a binding to allow creation of a {value: _this} binding");
+            return (IStaticValueBinding)dataContext!.GetProperty<ThisBindingProperty>().binding;
         }
 
         private static readonly ConditionalWeakTable<Expression, BindingParameterAnnotation> _expressionAnnotations =

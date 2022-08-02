@@ -23,7 +23,7 @@ public class GridViewDataSetBindingProvider
     private readonly BindingCompilationService service;
 
     private readonly ConcurrentDictionary<(DataContextStack dataContextStack, IValueBinding dataSetBinding, GridViewDataSetCommandType commandType), DataPagerBindings> dataPagerCommands = new();
-    private readonly ConcurrentDictionary<(DataContextStack dataContextStack, IValueBinding dataSetBinding, GridViewDataSetCommandType commandType), GridViewBindings> gridViewCommands = new();
+    private readonly ConcurrentDictionary<(DataContextStack dataContextStack, IStaticValueBinding dataSetBinding, GridViewDataSetCommandType commandType), GridViewBindings> gridViewCommands = new();
 
     public GridViewDataSetBindingProvider(BindingCompilationService service)
     {
@@ -37,7 +37,7 @@ public class GridViewDataSetBindingProvider
     }
 
     /// <summary> Returns pre-created GridView bindings for a given data context and data source (result is cached). </summary>
-    public GridViewBindings GetGridViewBindings(DataContextStack dataContextStack, IValueBinding dataSetBinding, GridViewDataSetCommandType commandType)
+    public GridViewBindings GetGridViewBindings(DataContextStack dataContextStack, IStaticValueBinding dataSetBinding, GridViewDataSetCommandType commandType)
     {
         return gridViewCommands.GetOrAdd((dataContextStack, dataSetBinding, commandType), x => GetGridViewBindingsCore(x.dataContextStack, x.dataSetBinding, x.commandType));
     }
@@ -132,8 +132,9 @@ public class GridViewDataSetBindingProvider
         };
     }
 
-    private GridViewBindings GetGridViewBindingsCore(DataContextStack dataContextStack, IValueBinding dataSetBinding, GridViewDataSetCommandType commandType)
+    private GridViewBindings GetGridViewBindingsCore(DataContextStack dataContextStack, IStaticValueBinding dataSetBinding, GridViewDataSetCommandType commandType)
     {
+        var isServerOnly = dataSetBinding is not IValueBinding;
         var dataSetExpr = dataSetBinding.GetProperty<ParsedExpressionBindingProperty>().Expression;
         ICommandBinding? GetCommandOrNull<T>(DataContextStack dataContextStack, string methodName, Expression[] arguments, Func<Expression, Expression>? transformExpression)
         {
@@ -141,10 +142,10 @@ public class GridViewDataSetBindingProvider
                 ? CreateCommandBinding<T>(commandType, dataSetExpr, dataContextStack, methodName, arguments, transformExpression)
                 : null;
         }
-        IValueBinding<TResult>? GetValueBindingOrNull<T, TResult>(DataContextStack dataContextStack, string methodName, Expression[] arguments, Func<Expression, Expression>? transformExpression)
+        IStaticValueBinding<TResult>? GetValueBindingOrNull<T, TResult>(DataContextStack dataContextStack, string methodName, Expression[] arguments, Func<Expression, Expression>? transformExpression)
         {
             return typeof(T).IsAssignableFrom(dataSetExpr.Type)
-                ? CreateValueBinding<T, TResult>(dataSetExpr, dataContextStack, methodName, arguments, transformExpression)
+                ? CreateValueBinding<T, TResult>(dataSetExpr, dataContextStack, methodName, arguments, transformExpression, isServerOnly)
                 : null;
         }
 
@@ -172,7 +173,7 @@ public class GridViewDataSetBindingProvider
         };
     }
 
-    private IValueBinding<TResult> CreateValueBinding<TDataSetInterface, TResult>(Expression dataSet, DataContextStack dataContextStack, string methodName, Expression[] arguments, Func<Expression, Expression>? transformExpression = null)
+    private IStaticValueBinding<TResult> CreateValueBinding<TDataSetInterface, TResult>(Expression dataSet, DataContextStack dataContextStack, string methodName, Expression[] arguments, Func<Expression, Expression>? transformExpression = null, bool isServerOnly = false)
     {
         // get concrete type from implementation of IXXXableGridViewDataSet<?>
         var optionsConcreteType = GetOptionsConcreteType<TDataSetInterface>(dataSet.Type, out var optionsProperty);
@@ -188,12 +189,22 @@ public class GridViewDataSetBindingProvider
             expression = transformExpression(expression);
         }
 
-        return new ValueBindingExpression<TResult>(service,
-                new object[]
-                {
-                    new ParsedExpressionBindingProperty(expression),
-                    dataContextStack
-                });
+        if (isServerOnly)
+        {
+            return new ResourceBindingExpression<TResult>(service,
+                    [
+                        new ParsedExpressionBindingProperty(expression),
+                        dataContextStack
+                    ]);
+        }
+        else
+        {
+            return new ValueBindingExpression<TResult>(service,
+                    [
+                        new ParsedExpressionBindingProperty(expression),
+                        dataContextStack
+                    ]);
+        }
     }
 
     private ICommandBinding CreateCommandBinding<TDataSetInterface>(GridViewDataSetCommandType commandType, Expression dataSet, DataContextStack dataContextStack, string methodName, Expression[] arguments, Func<Expression, Expression>? transformExpression = null)

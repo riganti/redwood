@@ -965,7 +965,7 @@
         "onlyHardcoded": true
       },
       "ValueBinding": {
-        "type": "DotVVM.Framework.Binding.Expressions.IValueBinding, DotVVM.Framework",
+        "type": "DotVVM.Framework.Binding.Expressions.IStaticValueBinding, DotVVM.Framework",
         "required": true,
         "onlyBindings": true
       }

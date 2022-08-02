@@ -164,6 +164,19 @@ namespace DotVVM.Framework.Tests.ControlTests
             check.CheckString(r.FormattedHtml, fileExtension: "html");
         }
 
+        [TestMethod]
+        public async Task GridView()
+        {
+            var r = await cth.RunPage(typeof(TestViewModel), @"
+                <dot:GridView DataSource={resource: Customers}>
+                    <dot:GridViewTextColumn HeaderText=Id ValueBinding={resource: Id} />
+                    <dot:GridViewTemplateColumn HeaderText=Name>
+                        {{resource: Name}}
+                    </dot:GridViewTemplateColumn>
+                </dot:GridView>");
+            check.CheckString(r.FormattedHtml, fileExtension: "html");
+        }
+
 
         public class TestViewModel: DotvvmViewModelBase
         {

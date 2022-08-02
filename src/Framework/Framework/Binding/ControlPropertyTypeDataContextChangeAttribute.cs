@@ -47,7 +47,7 @@ namespace DotVVM.Framework.Binding
                 throw new Exception($"The property '{PropertyName}' was not found on control '{controlType}'!");
             }
 
-            if (control.properties.Contains(controlProperty) && control.GetValueBinding(controlProperty) is IValueBinding valueBinding)
+            if (control.properties.Contains(controlProperty) && control.GetBinding(controlProperty) is IStaticValueBinding valueBinding)
             {
                 return valueBinding.ResultType;
             }
