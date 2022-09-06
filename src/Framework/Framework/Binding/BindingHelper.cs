@@ -92,16 +92,22 @@ namespace DotVVM.Framework.Binding
             foreach (var a in control.GetAllAncestors(includingThis: true))
             {
                 var ancestorContext = a.GetDataContextType(inherit: false);
-                if (bindingContext.Equals(ancestorContext))
-                    return (changes, a);
 
-                if (ancestorContext is { ServerSideOnly: false } && !ancestorContext.Equals(lastAncestorContext))
+                if (ancestorContext is null)
+                    continue;
+
+                if (!ancestorContext.ServerSideOnly &&
+                    !ancestorContext.Equals(lastAncestorContext))
                 {
                     // only count changes which are visible client-side
                     // server-side context are not present in the client-side stack at all, so we need to skip them here
                     changes++;
                     lastAncestorContext = ancestorContext;
                 }
+
+                if (bindingContext.Equals(ancestorContext))
+                    return (changes, a);
+
             }
 
             // try to get the real objects, to see which is wrong
