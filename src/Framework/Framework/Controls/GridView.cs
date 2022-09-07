@@ -556,10 +556,12 @@ namespace DotVVM.Framework.Controls
             var userColumnMappingService = context.Services.GetRequiredService<UserColumnMappingCache>();
             var mapping = userColumnMappingService.GetMapping(itemType!);
             var mappingJson = JsonSerializer.Serialize(mapping, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
-            var dataBinding = (GetDataSourceBinding() as IValueBinding).NotNull("GridView does not support DataSource={resource: ...} at this moment.");
+            var dataBinding =
+                (GetDataSourceBinding() as IValueBinding ?? throw new DotvvmControlException(this, "GridView does not support DataSource={resource: ...} at this moment."))
+                    .GetKnockoutBindingExpression(this, unwrapped: true);
 
             var helperBinding = new KnockoutBindingGroup();
-            helperBinding.Add("dataSet", dataBinding.GetKnockoutBindingExpression(this, unwrapped: true));
+            helperBinding.Add("dataSet", dataBinding);
             helperBinding.Add("mapping", mappingJson);
             if (this.LoadData is { } loadData)
             {
