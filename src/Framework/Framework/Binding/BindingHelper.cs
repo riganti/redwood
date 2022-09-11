@@ -101,7 +101,30 @@ namespace DotVVM.Framework.Binding
                 {
                     // only count changes which are visible client-side
                     // server-side context are not present in the client-side stack at all, so we need to skip them here
-                    changes++;
+
+                    // don't count changes which only extend the data context, but don't nest it
+
+                    var isNesting = ancestorContext.IsAncestorOf(lastAncestorContext);
+                    if (isNesting)
+                    {
+                        changes++;
+                    }
+#if DEBUG
+                    else if (!lastAncestorContext.DataContextType.IsAssignableFrom(ancestorContext.DataContextType))
+                    {
+                        // this should not happen - data context type should not randomly change without nesting.
+                        // we change data context stack when we get into different compilation context - a markup control
+                        // but that will be always the same viewmodel type (or supertype)
+
+                        var previousAncestor = control.GetAllAncestors(includingThis: true).TakeWhile(aa => aa != a).LastOrDefault();
+                        var config = (control.GetValue(Internal.RequestContextProperty) as Hosting.IDotvvmRequestContext)?.Configuration;
+                        throw new DotvvmControlException(
+                            previousAncestor ?? a,
+                            $"DataContext type changed from '{lastAncestorContext.DataContextType.ToCode()}' to '{ancestorContext.DataContextType.ToCode()}' without nesting. " +
+                            $"{previousAncestor?.DebugString(config)} has DataContext: {lastAncestorContext}, " +
+                            $"{a.DebugString(config)} has DataContext: {ancestorContext}");
+                    }
+#endif
                     lastAncestorContext = ancestorContext;
                 }
 

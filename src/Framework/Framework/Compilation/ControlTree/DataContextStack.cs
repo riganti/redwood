@@ -110,6 +110,21 @@ namespace DotVVM.Framework.Compilation.ControlTree
             }
         }
 
+        public bool IsAncestorOf(DataContextStack x)
+        {
+            var c = x.Parent;
+            while (c != null)
+            {
+                if (this.hashCode == c.hashCode)
+                {
+                    if (this.Equals(c))
+                        return true;
+                }
+                c = c.Parent;
+            }
+            return false;
+        }
+
         ITypeDescriptor IDataContextStack.DataContextType => new ResolvedTypeDescriptor(DataContextType);
         IDataContextStack? IDataContextStack.Parent => Parent;
 

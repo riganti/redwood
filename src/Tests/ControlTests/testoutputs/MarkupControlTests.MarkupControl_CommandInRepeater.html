@@ -1,0 +1,16 @@
+<html>
+	<head></head>
+	<body>
+		
+		<!-- ko with: int -->
+		<div>
+			<input onclick="dotvvm.postBack(this,[&quot;$parent.int&quot;],&quot;A0nd+6BTPk/xOJQH&quot;,&quot;c7&quot;,null,[],[],undefined).catch(dotvvm.log.logPostBackScriptError);event.stopPropagation();return false;" type="button" value="Button with number = 10000000">
+		</div>
+		<!-- /ko -->
+		<div data-bind="foreach: { data: Collection }">
+			<div>
+				<input onclick="dotvvm.postBack(this,[&quot;Collection/[$index]&quot;],&quot;A0nd+6BTPk/xOJQH&quot;,&quot;c9&quot;+'_'+ko.contextFor(this).$index()+'_'+&quot;c11&quot;,null,[],[],undefined).catch(dotvvm.log.logPostBackScriptError);event.stopPropagation();return false;" type="button" value="Button with number = 10000000">
+			</div>
+		</div>
+	</body>
+</html>

@@ -51,7 +51,7 @@ namespace DotVVM.Samples.Tests.Complex
 
                 //add task
                 browser.SendKeys("input[type=text]", "DotVVM");
-                browser.Click("input[type=button]");
+                browser.Click("input[type=submit]");
 
                 browser.FindElements(".table tr").ThrowIfDifferentCountThan(4);
 

@@ -27,6 +27,7 @@ namespace DotVVM.Framework.Tests.ControlTests
             _ = Repeater.RenderAsNamedTemplateProperty;
             config.Resources.RegisterScriptModuleUrl("somemodule", "http://localhost:99999/somemodule.js", null);
             config.Markup.AddMarkupControl("cc", "CustomControl", "CustomControl.dotcontrol");
+            config.Markup.AddMarkupControl("cc", "CustomControlWithStaticCommand", "CustomControlWithStaticCommand.dotcontrol");
             config.Markup.AddMarkupControl("cc", "CustomControlWithCommand", "CustomControlWithCommand.dotcontrol");
             config.Markup.AddMarkupControl("cc", "CustomControlWithProperty", "CustomControlWithProperty.dotcontrol");
             config.Markup.AddMarkupControl("cc", "CustomControlWithInvalidVM", "CustomControlWithInvalidVM.dotcontrol");
@@ -71,14 +72,14 @@ namespace DotVVM.Framework.Tests.ControlTests
         {
             var r = await cth.RunPage(typeof(BasicTestViewModel), @"
 
-                <cc:CustomControlWithCommand DataContext={value: Integer} Click={staticCommand: s.Save(_parent.Integer)} Another={value: _this} />
+                <cc:CustomControlWithStaticCommand DataContext={value: Integer} Click={staticCommand: s.Save(_parent.Integer)} Another={value: _this} />
                 <dot:Repeater DataSource={value: Collection}>
-                    <cc:CustomControlWithCommand Click={staticCommand: s.Save(_this)} Another={value: _root.Integer} />
+                    <cc:CustomControlWithStaticCommand Click={staticCommand: s.Save(_this)} Another={value: _root.Integer} />
                 </dot:Repeater>
                 ",
                 directives: $"@service s = {typeof(TestService)}",
                 markupFiles: new Dictionary<string, string> {
-                    ["CustomControlWithCommand.dotcontrol"] = @"
+                    ["CustomControlWithStaticCommand.dotcontrol"] = @"
                         @viewModel int
                         @baseType DotVVM.Framework.Tests.ControlTests.CustomControlWithCommand
                         @wrapperTag div
@@ -88,6 +89,30 @@ namespace DotVVM.Framework.Tests.ControlTests
 
             check.CheckString(r.FormattedHtml, fileExtension: "html");
         }
+
+        [TestMethod]
+        public async Task MarkupControl_CommandInRepeater()
+        {
+            var r = await cth.RunPage(typeof(BasicTestViewModel), @"
+
+                <cc:CustomControlWithCommand DataContext={value: Integer} Click={command: s.Save(_parent.Integer)} Another={value: _this} />
+                <dot:Repeater DataSource={value: Collection}>
+                    <cc:CustomControlWithCommand Click={command: s.Save(_this)} Another={value: _root.Integer} />
+                </dot:Repeater>
+                ",
+                directives: $"@service s = {typeof(TestService)}",
+                markupFiles: new Dictionary<string, string> {
+                    ["CustomControlWithCommand.dotcontrol"] = @"
+                        @viewModel int
+                        @baseType DotVVM.Framework.Tests.ControlTests.CustomControlWithCommand
+                        @wrapperTag div
+                        <dot:Button Click={command: _control.Click()} Text={resource: $'Button with number = {_control.Another}'} />"
+                }
+            );
+
+            check.CheckString(r.FormattedHtml, fileExtension: "html");
+        }
+
 
         [TestMethod]
         public async Task MarkupControl_UpdateSource()
