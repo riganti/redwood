@@ -94,6 +94,20 @@ namespace DotVVM.Framework.Controls
             DotvvmProperty.Register<ITemplate?, DataPager>(c => c.NextPageTemplate, null);
 
         /// <summary>
+        /// Gets or sets the template of the button which moves the user to the numbered page.
+        /// </summary>
+        [MarkupOptions(AllowBinding = false, MappingMode = MappingMode.InnerElement)]
+        [ConstantDataContextChange(typeof(int[]), order: 0)]
+        [CollectionElementDataContextChange(order: 1)]
+        public ITemplate? PageNumberTemplate
+        {
+            get { return (ITemplate?)GetValue(PageNumberTemplateProperty); }
+            set { SetValue(PageNumberTemplateProperty, value); }
+        }
+        public static readonly DotvvmProperty PageNumberTemplateProperty =
+            DotvvmProperty.Register<ITemplate?, DataPager>(c => c.PageNumberTemplate, null);
+
+        /// <summary>
         /// Gets or sets whether a hyperlink should be rendered for the current page number. If set to false, only a plain text is rendered.
         /// </summary>
         [MarkupOptions(AllowBinding = false)]
@@ -127,6 +141,27 @@ namespace DotVVM.Framework.Controls
             DotvvmPropertyWithFallback.Register<bool, DataPager>(nameof(Enabled), FormControls.EnabledProperty);
 
         /// <summary>
+        /// Gets or sets styles for the list item element (&lt;li&gt;) rendered by the component.
+        /// </summary>
+        public HtmlCapability ListItemHtmlCapability
+        {
+            get => (HtmlCapability)ListItemHtmlCapabilityProperty.GetValue(this);
+            set => ListItemHtmlCapabilityProperty.SetValue(this, value);
+        }
+        public static readonly DotvvmCapabilityProperty ListItemHtmlCapabilityProperty = DotvvmCapabilityProperty.RegisterCapability<HtmlCapability, DataPager>("ListItem");
+
+        /// <summary>
+        /// Gets or sets styles for the link buttons rendered by the component.
+        /// </summary>
+        public HtmlCapability LinkHtmlCapability
+        {
+            get => (HtmlCapability)LinkHtmlCapabilityProperty.GetValue(this);
+            set => LinkHtmlCapabilityProperty.SetValue(this, value);
+        }
+        public static readonly DotvvmCapabilityProperty LinkHtmlCapabilityProperty = DotvvmCapabilityProperty.RegisterCapability<HtmlCapability, DataPager>("Link");
+
+
+        /// <summary>
         /// Gets or sets the (static) command that will be triggered when the DataPager needs to load data (when navigating to different page).
         /// The command accepts one argument of type <see cref="GridViewDataSetOptions{TFilteringOptions, TSortingOptions, TPagingOptions}" /> and should return a new <see cref="GridViewDataSet{T}" /> or <see cref="GridViewDataSetResult{TItem, TFilteringOptions, TSortingOptions, TPagingOptions}" />.
         /// </summary>
@@ -138,14 +173,36 @@ namespace DotVVM.Framework.Controls
         public static readonly DotvvmProperty LoadDataProperty =
             DotvvmProperty.Register<ICommandBinding?, DataPager>(nameof(LoadData));
 
+        /// <summary>
+        /// Gets or sets the CSS class to be applied to the currently active page number.
+        /// </summary>
+        [MarkupOptions(AllowBinding = false)]
+        public string ActiveItemCssClass
+        {
+            get { return (string)GetValue(ActiveItemCssClassProperty); }
+            set { SetValue(ActiveItemCssClassProperty, value); }
+        }
+        public static readonly DotvvmProperty ActiveItemCssClassProperty
+            = DotvvmProperty.Register<string, DataPager>(c => c.ActiveItemCssClass, "active");
+
+        /// <summary>
+        /// Gets or sets the CSS class that to be applied to the disabled items.
+        /// </summary>
+        [MarkupOptions(AllowBinding = false)]
+        public string DisabledItemCssClass
+        {
+            get { return (string)GetValue(DisabledItemCssClassProperty); }
+            set { SetValue(DisabledItemCssClassProperty, value); }
+        }
+        public static readonly DotvvmProperty DisabledItemCssClassProperty
+            = DotvvmProperty.Register<string, DataPager>(c => c.DisabledItemCssClass, "disabled");
+
         protected HtmlGenericControl? ContentWrapper { get; set; }
         protected HtmlGenericControl? GoToFirstPageButton { get; set; }
         protected HtmlGenericControl? GoToPreviousPageButton { get; set; }
         protected Repeater? NumberButtonsRepeater { get; set; }
         protected HtmlGenericControl? GoToNextPageButton { get; set; }
         protected HtmlGenericControl? GoToLastPageButton { get; set; }
-        protected virtual string ActiveItemCssClass => "active";
-        protected virtual string DisabledItemCssClass => "disabled";
 
         protected internal override void OnLoad(IDotvvmRequestContext context)
         {
@@ -196,7 +253,7 @@ namespace DotVVM.Framework.Controls
             if (pagerBindings.PageNumbers is {})
             {
                 // number fields
-                var liTemplate = CreatePageNumberButton(globalEnabled, pagerBindings, context);
+                var liTemplate = CreatePageNumberButton(globalEnabled, PageNumberTemplate, pagerBindings, context);
                 AddItemCssClass(liTemplate, context);
 
                 NumberButtonsRepeater = new Repeater() {
@@ -250,22 +307,23 @@ namespace DotVVM.Framework.Controls
 
         protected override void AddVisibleAttributeOrBinding(in RenderState r, IHtmlWriter writer) { } // handled by the wrapper list
 
-        protected virtual HtmlGenericControl CreatePageNumberButton(ValueOrBinding<bool> globalEnabled, DataPagerBindings pagerBindings, IDotvvmRequestContext context)
+        protected virtual HtmlGenericControl CreatePageNumberButton(ValueOrBinding<bool> globalEnabled, ITemplate? userDefinedContentTemplate, DataPagerBindings pagerBindings, IDotvvmRequestContext context)
         {
-            var liTemplate = new HtmlGenericControl("li");
+            var liTemplate = new HtmlGenericControl("li", ListItemHtmlCapability);
             liTemplate.CssClasses.Add(ActiveItemCssClass, new ValueOrBinding<bool>(pagerBindings.NotNull().IsActivePage.NotNull()));
-            var link = new LinkButton();
+            
+            var link = new LinkButton().SetCapability(LinkHtmlCapability);
+            
             link.SetBinding(ButtonBase.ClickProperty, pagerBindings.NotNull().GoToPage.NotNull());
-            SetPageNumberButtonContent(link, pagerBindings, context);
+            SetPageNumberButtonContent(context, link, pagerBindings, userDefinedContentTemplate);
             if (!RenderLinkForCurrentPage) link.SetBinding(IncludeInPageProperty, pagerBindings.IsActivePage.NotNull().Negate());
             if (!true.Equals(globalEnabled)) link.SetValue(ButtonBase.EnabledProperty, globalEnabled);
             liTemplate.Children.Add(link);
 
             if (!RenderLinkForCurrentPage)
             {
-                var notLink = new Literal();
-                SetPageNumberSpanContent(notLink, pagerBindings, context);
-                notLink.RenderSpanElement = true;
+                var notLink = new HtmlGenericControl("span").SetCapability(LinkHtmlCapability);
+                SetPageNumberSpanContent(context, notLink, pagerBindings, userDefinedContentTemplate);
                 notLink.SetBinding(IncludeInPageProperty, pagerBindings.IsActivePage);
                 liTemplate.Children.Add(notLink);
             }
@@ -274,8 +332,10 @@ namespace DotVVM.Framework.Controls
 
         protected virtual HtmlGenericControl CreateNavigationButton(string defaultText, ITemplate? userDefinedContentTemplate, object enabledValue, ICommandBinding clickCommandBindingExpression,IDotvvmRequestContext context)
         {
-            var li = new HtmlGenericControl("li");
-            var link = new LinkButton();
+            var li = new HtmlGenericControl("li", ListItemHtmlCapability);
+
+            var link = new LinkButton().SetCapability(LinkHtmlCapability);
+
             SetNavigationButtonContent(context, link, defaultText, userDefinedContentTemplate);
             link.SetBinding(ButtonBase.ClickProperty, clickCommandBindingExpression);
             if (!true.Equals(enabledValue)) link.SetValue(ButtonBase.EnabledProperty, enabledValue);
@@ -295,14 +355,28 @@ namespace DotVVM.Framework.Controls
             }
         }
 
-        protected virtual void SetPageNumberSpanContent(Literal notLink, DataPagerBindings pagerBindings, IDotvvmRequestContext context)
+        protected virtual void SetPageNumberSpanContent(IDotvvmRequestContext context, HtmlGenericControl span, DataPagerBindings pagerBindings, ITemplate? userDefinedContentTemplate)
         {
-            notLink.SetBinding(Literal.TextProperty, pagerBindings.PageNumberText.NotNull());
+            if (userDefinedContentTemplate != null)
+            {
+                userDefinedContentTemplate.BuildContent(context, span);
+            }
+            else
+            {
+                span.SetBinding(Literal.TextProperty, pagerBindings.PageNumberText.NotNull());
+            }
         }
 
-        protected virtual void SetPageNumberButtonContent(LinkButton link, DataPagerBindings pagerBindings, IDotvvmRequestContext context)
+        protected virtual void SetPageNumberButtonContent(IDotvvmRequestContext context, LinkButton link, DataPagerBindings pagerBindings, ITemplate? userDefinedContentTemplate)
         {
-            link.SetBinding(ButtonBase.TextProperty, pagerBindings.PageNumberText.NotNull());
+            if (userDefinedContentTemplate != null)
+            {
+                userDefinedContentTemplate.BuildContent(context, link);
+            }
+            else
+            {
+                link.SetBinding(ButtonBase.TextProperty, pagerBindings.PageNumberText.NotNull());
+            }
         }
 
         protected virtual void AddItemCssClass(HtmlGenericControl item, IDotvvmRequestContext context)

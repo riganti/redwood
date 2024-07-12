@@ -1,0 +1,52 @@
+﻿@viewModel DotVVM.Samples.BasicSamples.ViewModels.ControlSamples.DataPager.DataPagerTemplatesViewModel, DotVVM.Samples.Common
+
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>
+        .pagination {
+            list-style-type: none;
+            display: flex;
+            align-items: center;
+        }
+        .page-item {
+            margin: 0 1em;
+        }
+        .page-link {
+            text-decoration: none;
+        }
+        .disabled {
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Templates in DataPager</h1>
+
+    <dot:Repeater DataSource="{value: DataSet}" WrapperTagName="ul">
+        <ItemTemplate>
+            <li>{{value: Text}}</li>
+        </ItemTemplate>
+    </dot:Repeater>
+
+    <dot:DataPager DataSet="{value: DataSet}"
+                   class="pagination"
+                   ListItemclass="page-item"
+                   Linkclass="page-link">
+        <FirstPageTemplate>◀️◀️</FirstPageTemplate>
+        <PreviousPageTemplate>◀️</PreviousPageTemplate>
+        <NextPageTemplate>▶️</NextPageTemplate>
+        <LastPageTemplate>▶️▶️</LastPageTemplate>
+        <PageNumberTemplate>
+            {{value: _root.RomanNumerals[_this]}}
+        </PageNumberTemplate>
+    </dot:DataPager>
+
+</body>
+</html>
+
+

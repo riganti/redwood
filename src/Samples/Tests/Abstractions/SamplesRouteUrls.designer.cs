@@ -75,6 +75,7 @@ namespace DotVVM.Testing.Abstractions
         public const string ControlSamples_ContentPlaceHolder_ContentPlaceHolderPage_ContentTest = "ControlSamples/ContentPlaceHolder/ContentPlaceHolderPage_ContentTest";
         public const string ControlSamples_ContentPlaceHolder_DoubleContentPlaceHolderPage_ContentTest = "ControlSamples/ContentPlaceHolder/DoubleContentPlaceHolderPage_ContentTest";
         public const string ControlSamples_DataPager_DataPager = "ControlSamples/DataPager/DataPager";
+        public const string ControlSamples_DataPager_DataPagerTemplates = "ControlSamples/DataPager/DataPagerTemplates";
         public const string ControlSamples_EnabledProperty_EnabledProperty = "ControlSamples/EnabledProperty/EnabledProperty";
         public const string ControlSamples_EnvironmentView_EnvironmentViewTest = "ControlSamples/EnvironmentView/EnvironmentViewTest";
         public const string ControlSamples_FileUpload_FileSize = "ControlSamples/FileUpload/FileSize";
