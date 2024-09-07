@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DotVVM.Framework.Controls;
 
@@ -7,4 +9,5 @@ namespace DotVVM.Framework.Controls;
 public interface IPagingOptionsLoadingPostProcessor
 {
     void ProcessLoadedItems<T>(IQueryable<T> filteredQueryable, IList<T> items);
+    Task ProcessLoadedItemsAsync<T>(IQueryable<T> filteredQueryable, IList<T> items, CancellationToken cancellationToken);
 }

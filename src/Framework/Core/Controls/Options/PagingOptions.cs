@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using DotVVM.Framework.ViewModel;
 
 namespace DotVVM.Framework.Controls
@@ -125,5 +127,10 @@ namespace DotVVM.Framework.Controls
         {
             TotalItemsCount = filteredQueryable.Count();
         }
+        public async Task ProcessLoadedItemsAsync<T>(IQueryable<T> filteredQueryable, IList<T> items, CancellationToken cancellationToken)
+        {
+            TotalItemsCount = await PagingImplementation.QueryableAsyncCount(filteredQueryable, cancellationToken);
+        }
+
     }
 }

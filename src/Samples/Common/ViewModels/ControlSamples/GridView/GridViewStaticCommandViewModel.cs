@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using DotVVM.Framework.Controls;
 using DotVVM.Framework.ViewModel;
@@ -123,6 +124,12 @@ namespace DotVVM.Samples.BasicSamples.ViewModels.ControlSamples.GridView
                     NextPageToken = lastToken.ToString();
                 }
             }
+
+            Task IPagingOptionsLoadingPostProcessor.ProcessLoadedItemsAsync<T>(IQueryable<T> filteredQueryable, IList<T> items, CancellationToken cancellationToken)
+            {
+                ProcessLoadedItems(filteredQueryable, items);
+                return Task.CompletedTask;
+            }
         }
 
         public class NextTokenHistoryGridViewDataSet() : GenericGridViewDataSet<CustomerData, NoFilteringOptions, SortingOptions, CustomerDataNextTokenHistoryPagingOptions, RowInsertOptions<CustomerData>, RowEditOptions>(
@@ -164,6 +171,12 @@ namespace DotVVM.Samples.BasicSamples.ViewModels.ControlSamples.GridView
 
                     TokenHistory.Add((lastToken ?? 0).ToString());
                 }
+            }
+
+            Task IPagingOptionsLoadingPostProcessor.ProcessLoadedItemsAsync<T>(IQueryable<T> filteredQueryable, IList<T> items, CancellationToken cancellationToken)
+            {
+                ProcessLoadedItems(filteredQueryable, items);
+                return Task.CompletedTask;
             }
         }
 
