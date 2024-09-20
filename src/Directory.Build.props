@@ -25,8 +25,8 @@
     <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
     <Deterministic>true</Deterministic>
     <PreserveCompilationContext>true</PreserveCompilationContext>
-    <DefaultTargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">netstandard2.1;net6.0;net472</DefaultTargetFrameworks>
-    <DefaultTargetFrameworks Condition=" '$(OS)' != 'Windows_NT' ">netstandard2.1;net6.0</DefaultTargetFrameworks>
+    <DefaultTargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">net8.0;net6.0;netstandard2.1;net472</DefaultTargetFrameworks>
+    <DefaultTargetFrameworks Condition=" '$(OS)' != 'Windows_NT' ">net8.0;net6.0;netstandard2.1</DefaultTargetFrameworks>
     <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
     <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
   </PropertyGroup>

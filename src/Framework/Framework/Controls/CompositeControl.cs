@@ -155,10 +155,10 @@ namespace DotVVM.Framework.Controls
             }
 
             var commands = new List<(string, ICommandBinding)>();
-            foreach (var (property, value) in this.Properties)
+            foreach (var (property, value) in this.properties)
             {
                 if (value is ICommandBinding command)
-                    commands.Add((property.Name, command));
+                    commands.Add((property.PropertyInstance.Name, command));
             }
 
             foreach (var child in childControls)
@@ -181,10 +181,10 @@ namespace DotVVM.Framework.Controls
                 return target;
 
             var commands = new List<(string, ICommandBinding)>();
-            foreach (var (property, value) in this.Properties)
+            foreach (var (property, value) in this.properties)
             {
                 if (value is ICommandBinding command)
-                    commands.Add((property.Name, command));
+                    commands.Add((property.PropertyInstance.Name, command));
             }
             CopyPostBackHandlersRecursive(handlers, commands, target);
 
@@ -194,7 +194,7 @@ namespace DotVVM.Framework.Controls
         private static void CopyPostBackHandlersRecursive(PostBackHandlerCollection handlers, List<(string, ICommandBinding)> commands, DotvvmBindableObject target)
         {
             PostBackHandlerCollection? childHandlers = null;
-            foreach (var (property, value) in target.Properties)
+            foreach (var (property, value) in target.properties)
             {
                 if (value is ICommandBinding command)
                 {
@@ -202,7 +202,7 @@ namespace DotVVM.Framework.Controls
                     {
                         if (object.ReferenceEquals(command, matchedCommand))
                         {
-                            CopyMatchingPostBackHandlers(handlers, oldName, property.Name, ref childHandlers);
+                            CopyMatchingPostBackHandlers(handlers, oldName, property.PropertyInstance.Name, ref childHandlers);
                             break;
                         }
                     }

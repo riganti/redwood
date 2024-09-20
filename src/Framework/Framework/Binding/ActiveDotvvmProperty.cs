@@ -13,6 +13,10 @@ namespace DotVVM.Framework.Binding
     /// <summary> An abstract DotvvmProperty which contains code to be executed when the assigned control is being rendered. </summary>
     public abstract class ActiveDotvvmProperty : DotvvmProperty
     {
+        internal ActiveDotvvmProperty(string name, Type declaringType, bool isValueInherited) : base(name, declaringType, isValueInherited)
+        {
+        }
+
         public abstract void AddAttributesToRender(IHtmlWriter writer, IDotvvmRequestContext context, DotvvmControl control);
 
 

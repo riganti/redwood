@@ -25,11 +25,13 @@ namespace DotVVM.Framework.Binding
     [DebuggerDisplay("{FullName}")]
     public class DotvvmProperty : IPropertyDescriptor
     {
+        public DotvvmPropertyId Id { get; }
 
         /// <summary>
         /// Gets or sets the name of the property.
         /// </summary>
-        public string Name { get; protected set; }
+        public string Name { get; }
+
 
         [JsonIgnore]
         ITypeDescriptor IControlAttributeDescriptor.DeclaringType => new ResolvedTypeDescriptor(DeclaringType);
@@ -50,7 +52,7 @@ namespace DotVVM.Framework.Binding
         /// <summary>
         /// Gets the type of the class where the property is registered.
         /// </summary>
-        public Type DeclaringType { get; protected set; }
+        public Type DeclaringType { get; }
 
         /// <summary>
         /// Gets whether the value can be inherited from the parent controls.
@@ -61,17 +63,17 @@ namespace DotVVM.Framework.Binding
         /// Gets or sets the Reflection property information.
         /// </summary>
         [JsonIgnore]
-        public PropertyInfo? PropertyInfo { get; private set; }
+        public PropertyInfo? PropertyInfo { get; protected set; }
 
         /// <summary>
         /// Provider of custom attributes for this property.
         /// </summary>
-        internal ICustomAttributeProvider AttributeProvider { get; set; }
+        internal ICustomAttributeProvider AttributeProvider { get; private protected set; }
 
         /// <summary>
         /// Gets or sets the markup options.
         /// </summary>
-        public MarkupOptionsAttribute MarkupOptions { get; set; }
+        public MarkupOptionsAttribute MarkupOptions { get; protected set; }
 
         /// <summary>
         /// Determines if property type inherits from IBinding
@@ -109,6 +111,8 @@ namespace DotVVM.Framework.Binding
         IPropertyDescriptor? IControlAttributeDescriptor.OwningCapability => OwningCapability;
         IEnumerable<IPropertyDescriptor> IControlAttributeDescriptor.UsedInCapabilities => UsedInCapabilities;
 
+        private bool initialized = false;
+
 
         internal void AddUsedInCapability(DotvvmCapabilityProperty? p)
         {
@@ -123,12 +127,24 @@ namespace DotVVM.Framework.Binding
                 }
         }
 
-        /// <summary>
-        /// Prevents a default instance of the <see cref="DotvvmProperty"/> class from being created.
-        /// </summary>
 #pragma warning disable CS8618 // DotvvmProperty is usually initialized by InitializeProperty
-        internal DotvvmProperty()
+        internal DotvvmProperty(string name, Type declaringType, bool isValueInherited)
         {
+            if (name is null) throw new ArgumentNullException(nameof(name));
+            if (declaringType is null) throw new ArgumentNullException(nameof(declaringType));
+            this.Name = name;
+            this.DeclaringType = declaringType;
+            this.IsValueInherited = isValueInherited;
+            this.Id = DotvvmPropertyIdAssignment.RegisterProperty(this);
+        }
+        internal DotvvmProperty(DotvvmPropertyId id, string name, Type declaringType)
+        {
+            if (name is null) throw new ArgumentNullException(nameof(name));
+            if (declaringType is null) throw new ArgumentNullException(nameof(declaringType));
+            if (id.Id == 0) throw new ArgumentException("DotvvmProperty must have an ID", nameof(id));
+            this.Name = name;
+            this.DeclaringType = declaringType;
+            this.Id = id;
         }
         internal DotvvmProperty(
 #pragma warning restore CS8618
@@ -137,7 +153,8 @@ namespace DotVVM.Framework.Binding
             Type declaringType,
             object? defaultValue,
             bool isValueInherited,
-            ICustomAttributeProvider attributeProvider
+            ICustomAttributeProvider attributeProvider,
+            DotvvmPropertyId id = default
         )
         {
             this.Name = name ?? throw new ArgumentNullException(nameof(name));
@@ -146,6 +163,9 @@ namespace DotVVM.Framework.Binding
             this.DefaultValue = defaultValue;
             this.IsValueInherited = isValueInherited;
             this.AttributeProvider = attributeProvider ?? throw new ArgumentNullException(nameof(attributeProvider));
+            if (id.Id == 0)
+                id = DotvvmPropertyIdAssignment.RegisterProperty(this);
+            this.Id = id;
             InitializeProperty(this);
         }
 
@@ -160,6 +180,23 @@ namespace DotVVM.Framework.Binding
             if (attrA.Length == 0) return attrB;
             if (attrB.Length == 0) return attrA;
             return attrA.Concat(attrB).ToArray();
+        }
+
+        public T? GetAttribute<T>() where T: Attribute
+        {
+            var t = typeof(T);
+            var provider = AttributeProvider;
+            if (provider.IsDefined(t, true))
+            {
+                return (T)provider.GetCustomAttributes(t, true).Single();
+            }
+            var property = PropertyInfo;
+            if (property is {} && !object.ReferenceEquals(property, provider))
+            {
+                return (T?)property.GetCustomAttribute(t, true);
+            }
+
+            return null;
         }
 
         public bool IsOwnedByCapability(Type capability) =>
@@ -258,14 +295,32 @@ namespace DotVVM.Framework.Binding
 
         public static DotvvmProperty Register(string propertyName, Type propertyType, Type declaringType, object? defaultValue, bool isValueInherited, DotvvmProperty? property, ICustomAttributeProvider attributeProvider, bool throwOnDuplicateRegistration = true)
         {
-            if (property == null) property = new DotvvmProperty();
+            if (propertyName is null) throw new ArgumentNullException(nameof(propertyName));
+            if (propertyType is null) throw new ArgumentNullException(nameof(propertyType));
+            if (declaringType is null) throw new ArgumentNullException(nameof(declaringType));
+            if (attributeProvider is null) throw new ArgumentNullException(nameof(attributeProvider));
 
-            property.Name = propertyName ?? throw new ArgumentNullException(nameof(propertyName));
-            property.IsValueInherited = isValueInherited;
-            property.DeclaringType = declaringType ?? throw new ArgumentNullException(nameof(declaringType));
-            property.PropertyType = propertyType ?? throw new ArgumentNullException(nameof(propertyType));
-            property.DefaultValue = defaultValue;
-            property.AttributeProvider = attributeProvider ?? throw new ArgumentNullException(nameof(attributeProvider));
+            if (property == null)
+            {
+                property = new DotvvmProperty(propertyName, propertyType, declaringType, defaultValue, isValueInherited, attributeProvider);
+            }
+            else
+            {
+                if (!property.initialized)
+                {
+                    property.PropertyType = propertyType;
+                    property.DefaultValue = defaultValue;
+                    property.IsValueInherited = isValueInherited;
+                    property.AttributeProvider = attributeProvider;
+                    InitializeProperty(property, attributeProvider);
+                }
+                if (property.Name != propertyName) throw new ArgumentException("The property name does not match the existing property.", nameof(propertyName));
+                if (property.IsValueInherited != isValueInherited) throw new ArgumentException("The IsValueInherited does not match the existing property.", nameof(isValueInherited));
+                if (property.DeclaringType != declaringType) throw new ArgumentException("The declaring type does not match the existing property.", nameof(declaringType));
+                if (property.PropertyType != propertyType) throw new ArgumentException("The property type does not match the existing property.", nameof(propertyType));
+                if (property.DefaultValue != defaultValue) throw new ArgumentException("The default value does not match the existing property.", nameof(defaultValue));
+                if (property.AttributeProvider != attributeProvider) throw new ArgumentException("The attribute provider does not match the existing property.", nameof(attributeProvider));
+            }
 
             return Register(property, throwOnDuplicateRegistration);
         }
@@ -288,7 +343,11 @@ namespace DotVVM.Framework.Binding
 
         internal static DotvvmProperty Register(DotvvmProperty property, bool throwOnDuplicateRegistration = true)
         {
-            InitializeProperty(property);
+            if (property.Id.Id == 0)
+                throw new Exception("DotvvmProperty must have an ID");
+
+            if (!property.initialized)
+                throw new Exception("DotvvmProperty must be initialized before registration.");
 
             var key = (property.DeclaringType, property.Name);
             if (!registeredProperties.TryAdd(key, property))
@@ -373,8 +432,8 @@ namespace DotVVM.Framework.Binding
                 aliasName,
                 declaringType,
                 aliasAttribute.AliasedPropertyName,
-                aliasAttribute.AliasedPropertyDeclaringType ?? declaringType);
-            propertyAlias.AttributeProvider = attributeProvider;
+                aliasAttribute.AliasedPropertyDeclaringType ?? declaringType,
+                attributeProvider);
             propertyAlias.ObsoleteAttribute = attributeProvider.GetCustomAttribute<ObsoleteAttribute>();
             var key = (propertyAlias.DeclaringType, propertyAlias.Name);
 
@@ -396,6 +455,8 @@ namespace DotVVM.Framework.Binding
 
         public static void InitializeProperty(DotvvmProperty property, ICustomAttributeProvider? attributeProvider = null)
         {
+            if (property.initialized)
+                throw new Exception("DotvvmProperty should not be initialized twice.");
             if (string.IsNullOrWhiteSpace(property.Name))
                 throw new Exception("DotvvmProperty must not have empty name.");
             if (property.DeclaringType is null || property.PropertyType is null)
@@ -409,24 +470,26 @@ namespace DotVVM.Framework.Binding
                 property.PropertyInfo ??
                 throw new ArgumentNullException(nameof(attributeProvider));
             property.MarkupOptions ??=
-                property.GetAttributes<MarkupOptionsAttribute>().SingleOrDefault()
+                property.GetAttribute<MarkupOptionsAttribute>()
                 ?? new MarkupOptionsAttribute();
             if (string.IsNullOrEmpty(property.MarkupOptions.Name))
                 property.MarkupOptions.Name = property.Name;
 
             property.DataContextChangeAttributes ??=
-                property.GetAttributes<DataContextChangeAttribute>().ToArray();
+                property.GetAttributes<DataContextChangeAttribute>();
             property.DataContextManipulationAttribute ??=
-                property.GetAttributes<DataContextStackManipulationAttribute>().SingleOrDefault();
-            if (property.DataContextManipulationAttribute != null && property.DataContextChangeAttributes.Any())
+                property.GetAttribute<DataContextStackManipulationAttribute>();
+            if (property.DataContextManipulationAttribute != null && property.DataContextChangeAttributes.Length != 0)
                 throw new ArgumentException($"{nameof(DataContextChangeAttributes)} and {nameof(DataContextManipulationAttribute)} cannot be set both at property '{property.FullName}'.");
             property.IsBindingProperty = typeof(IBinding).IsAssignableFrom(property.PropertyType);
-            property.ObsoleteAttribute = property.AttributeProvider.GetCustomAttribute<ObsoleteAttribute>();
+            property.ObsoleteAttribute = property.GetAttribute<ObsoleteAttribute>();
 
             if (property.IsBindingProperty)
             {
                 property.MarkupOptions.AllowHardCodedValue = false;
             }
+
+            property.initialized = true;
         }
 
         public static void CheckAllPropertiesAreRegistered(Type controlType)

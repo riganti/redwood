@@ -12,10 +12,9 @@ namespace DotVVM.Framework.Binding
             string aliasName,
             Type declaringType,
             string aliasedPropertyName,
-            Type aliasedPropertyDeclaringType)
+            Type aliasedPropertyDeclaringType,
+            System.Reflection.ICustomAttributeProvider attributeProvider): base(aliasName, declaringType, isValueInherited: false)
         {
-            Name = aliasName;
-            DeclaringType = declaringType;
             AliasedPropertyName = aliasedPropertyName;
             AliasedPropertyDeclaringType = aliasedPropertyDeclaringType;
             MarkupOptions = new MarkupOptionsAttribute();

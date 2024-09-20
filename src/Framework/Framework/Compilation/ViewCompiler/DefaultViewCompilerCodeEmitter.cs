@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -175,30 +176,110 @@ namespace DotVVM.Framework.Compilation.ViewCompiler
             controlProperties.Remove(name);
             if (properties.Count == 0) return;
 
-            properties.Sort((a, b) => string.Compare(a.prop.FullName, b.prop.FullName, StringComparison.Ordinal));
+            properties.Sort((a, b) => a.prop.Id.CompareTo(b.prop.Id));
 
-            var (hashSeed, keys, values) = PropertyImmutableHashtable.CreateTableWithValues(properties.Select(p => p.prop).ToArray(), properties.Select(p => p.value).ToArray());
-
-
-            Expression valueExpr;
-            if (TryCreateArrayOfConstants(values, out var invertedValues))
+            if (!TryEmitPerfectHashAssignment(GetParameterOrVariable(name), properties))
             {
-                valueExpr = EmitValue(invertedValues);
+                EmitDictionaryAssignment(GetParameterOrVariable(name), properties);
+            }
+
+        }
+
+        /// <summary> Set DotVVM properties as array of keys and array of values </summary>
+        private bool TryEmitPerfectHashAssignment(ParameterExpression control, List<(DotvvmProperty prop, Expression value)> properties)
+        {
+            return false;
+            if (properties.Count > 50)
+            {
+                return false;
+            }
+
+            try
+            {
+                var (flags, keys, values) = PropertyImmutableHashtable.CreateTableWithValues<Expression>(properties.Select(p => p.prop.Id).ToArray(), properties.Select(p => p.value).ToArray());
+
+                Expression valueExpr;
+                if (TryCreateArrayOfConstants(values, out var invertedValues))
+                {
+                    valueExpr = EmitValue(invertedValues);
+                }
+                else
+                {
+                    valueExpr = EmitCreateArray(
+                        typeof(object),
+                        values.Select(v => v ?? EmitValue(null))
+                    );
+                    flags |= 1u << 31; // owns values flag
+                }
+
+                var keyExpr = EmitValue(keys);
+
+                // PropertyImmutableHashtable.SetValuesToDotvvmControl(control, keys, values, hashSeed)
+                var magicSetValueCall = Expression.Call(typeof(PropertyImmutableHashtable), nameof(PropertyImmutableHashtable.SetValuesToDotvvmControl), emptyTypeArguments, Expression.Convert(control, typeof(DotvvmBindableObject)), keyExpr, valueExpr, EmitValue(flags));
+
+                EmitStatement(magicSetValueCall);
+            }
+            catch (PropertyImmutableHashtable.CannotMakeHashtableException)
+            {
+                return false;
+            }
+            return true;
+        }
+
+
+        /// <summary> Set DotVVM properties as a Dictionary, potentially shared one across different instantiations </summary>
+        private void EmitDictionaryAssignment(ParameterExpression control, List<(DotvvmProperty prop, Expression value)> properties)
+        {
+            if (properties.Count == 0)
+            {
+                return;
+            }
+            var constants = new Dictionary<DotvvmPropertyId, object?>(capacity: properties.Count);
+            var variables = new List<KeyValuePair<DotvvmPropertyId, Expression>>();
+
+            foreach (var (prop, value) in properties)
+            {
+                if (value is ConstantExpression constant)
+                {
+                    Debug.Assert(constant.Value is not DotvvmBindableObject and not IEnumerable<DotvvmBindableObject>, "Internal compiler bug: We cannot allow sharing of DotvvmBindableObject instances in the constants dictionary.");
+                    constants.Add(prop.Id, constant.Value);
+                }
+                else
+                {
+                    variables.Add(new (prop.Id, value));
+                }
+            }
+
+            Expression dict;
+
+            if (variables.Count == 0)
+            {
+                dict = EmitValue(constants);
             }
             else
             {
-                valueExpr = EmitCreateArray(
-                    typeof(object),
-                    values.Select(v => v ?? EmitValue(null))
-                );
+                throw new Exception("kokoooot");
+                var variable = Expression.Parameter(typeof(Dictionary<DotvvmPropertyId, object?>), "props_" + control.Name);
+
+                // var dict = new Dictionary<DotvvmPropertyId, object?>(constants);
+                // dict.Add(variables[0].Key, variables[0].Value);
+                // dict.Add(variables[1].Key, variables[1].Value);
+                // ...
+                var copyConstructor = typeof(Dictionary<DotvvmPropertyId, object?>).GetConstructor([ typeof(IDictionary<DotvvmPropertyId, object?>) ]).NotNull();
+                var propIdConstructor = typeof(DotvvmPropertyId).GetConstructor([ typeof(uint) ]).NotNull();
+                dict = Expression.Block(new [] { variable },
+                    Expression.Assign(variable,
+                        Expression.New(copyConstructor, EmitValue(constants))),
+                    Expression.Block(variables.Select(kv =>
+                        Expression.Call(variable, "Add", emptyTypeArguments, Expression.New(propIdConstructor, EmitValue(kv.Key.Id)), kv.Value))),
+                    variable);
             }
 
-            var keyExpr = EmitValue(keys);
-
-            // control.MagicSetValue(keys, values, hashSeed)
-            var controlParameter = GetParameterOrVariable(name);
-
-            var magicSetValueCall = Expression.Call(controlParameter, nameof(DotvvmBindableObject.MagicSetValue), emptyTypeArguments, keyExpr, valueExpr, EmitValue(hashSeed));
+            // PropertyImmutableHashtable.SetValuesToDotvvmControl(control, dict)
+            var magicSetValueCall = Expression.Call(typeof(PropertyImmutableHashtable), nameof(PropertyImmutableHashtable.SetValuesToDotvvmControl), emptyTypeArguments,
+                /*control:*/ Expression.Convert(control, typeof(DotvvmBindableObject)),
+                /*dict:*/ dict,
+                /*owns:*/ EmitValue(variables.Count > 0));
 
             EmitStatement(magicSetValueCall);
         }

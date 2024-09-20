@@ -12,7 +12,7 @@ namespace DotVVM.Framework.Binding
     {
         internal static class Helpers
         {
-            public static ValueOrBinding<T>? GetOptionalValueOrBinding<T>(DotvvmBindableObject c, DotvvmProperty p)
+            public static ValueOrBinding<T>? GetOptionalValueOrBinding<T>(DotvvmBindableObject c, DotvvmPropertyId p, object? defaultValue)
             {
                 if (c.properties.TryGet(p, out var x))
                 {
@@ -25,13 +25,13 @@ namespace DotVVM.Framework.Binding
                 }
                 else return null;
             }
-            public static ValueOrBinding<T> GetValueOrBinding<T>(DotvvmBindableObject c, DotvvmProperty p)
+            public static ValueOrBinding<T> GetValueOrBinding<T>(DotvvmBindableObject c, DotvvmPropertyId p, object? defaultValue)
             {
                 if (!c.properties.TryGet(p, out var x))
-                    x = p.DefaultValue;
+                    x = defaultValue;
                 return ValueOrBinding<T>.FromBoxedValue(x);
             }
-            public static ValueOrBinding<T>? GetOptionalValueOrBindingSlow<T>(DotvvmBindableObject c, DotvvmProperty p)
+            public static ValueOrBinding<T>? GetOptionalValueOrBindingSlow<T>(DotvvmBindableObject c, DotvvmProperty p, object? defaultValue)
             {
                 if (c.IsPropertySet(p))
                 {
@@ -45,42 +45,42 @@ namespace DotVVM.Framework.Binding
                 }
                 else return null;
             }
-            public static ValueOrBinding<T> GetValueOrBindingSlow<T>(DotvvmBindableObject c, DotvvmProperty p)
+            public static ValueOrBinding<T> GetValueOrBindingSlow<T>(DotvvmBindableObject c, DotvvmProperty p, object? defaultValue)
             {
                 return ValueOrBinding<T>.FromBoxedValue(c.GetValue(p));
             }
-            public static void SetOptionalValueOrBinding<T>(DotvvmBindableObject c, DotvvmProperty p, ValueOrBinding<T>? val)
+            public static void SetOptionalValueOrBinding<T>(DotvvmBindableObject c, DotvvmPropertyId p, object? defaultValue, ValueOrBinding<T>? val)
             {
                 if (val.HasValue)
                 {
-                    SetValueOrBinding<T>(c, p, val.GetValueOrDefault());
+                    SetValueOrBinding<T>(c, p, defaultValue, val.GetValueOrDefault());
                 }
                 else
                 {
                     c.properties.Remove(p);
                 }
             }
-            public static void SetValueOrBinding<T>(DotvvmBindableObject c, DotvvmProperty p, ValueOrBinding<T> val)
+            public static void SetValueOrBinding<T>(DotvvmBindableObject c, DotvvmPropertyId p, object? defaultValue, ValueOrBinding<T> val)
             {
                 var boxedVal = val.UnwrapToObject();
-                SetValueDirect(c, p, boxedVal);
+                SetValueDirect(c, p, defaultValue, boxedVal);
             }
-            public static void SetOptionalValueOrBindingSlow<T>(DotvvmBindableObject c, DotvvmProperty p, ValueOrBinding<T>? val)
+            public static void SetOptionalValueOrBindingSlow<T>(DotvvmBindableObject c, DotvvmProperty p, object? defaultValue, ValueOrBinding<T>? val)
             {
                 if (val.HasValue)
                 {
-                    SetValueOrBindingSlow<T>(c, p, val.GetValueOrDefault());
+                    SetValueOrBindingSlow<T>(c, p, defaultValue, val.GetValueOrDefault());
                 }
                 else
                 {
-                    c.SetValue(p, p.DefaultValue); // set to default value, just in case this property is backed in a different place than c.properties[p]
+                    c.SetValue(p, defaultValue); // set to default value, just in case this property is backed in a different place than c.properties[p]
                     c.properties.Remove(p);
                 }
             }
-            public static void SetValueOrBindingSlow<T>(DotvvmBindableObject c, DotvvmProperty p, ValueOrBinding<T> val)
+            public static void SetValueOrBindingSlow<T>(DotvvmBindableObject c, DotvvmProperty p, object? defaultValue, ValueOrBinding<T> val)
             {
                 var boxedVal = val.UnwrapToObject();
-                if (Object.Equals(boxedVal, p.DefaultValue) && !c.IsPropertySet(p))
+                if (Object.Equals(boxedVal, defaultValue) && !c.IsPropertySet(p))
                 {
                     // setting to default value and the property is not set -> do nothing
                 }
@@ -90,15 +90,15 @@ namespace DotVVM.Framework.Binding
                 }
             }
 
-            public static object? GetValueRawDirect(DotvvmBindableObject c, DotvvmProperty p)
+            public static object? GetValueRawDirect(DotvvmBindableObject c, DotvvmPropertyId p, object defaultValue)
             {
                 if (c.properties.TryGet(p, out var x))
                 {
                     return x;
                 }
-                else return p.DefaultValue;
+                else return defaultValue;
             }
-            public static T? GetStructValueDirect<T>(DotvvmBindableObject c, DotvvmProperty p)
+            public static T? GetStructValueDirect<T>(DotvvmBindableObject c, DotvvmPropertyId p, T? defaultValue)
                 where T: struct
             {
                 // T being a struct allows us to invert the rather expensive `is IBinding` typecheck in EvalPropertyValue
@@ -111,11 +111,11 @@ namespace DotVVM.Framework.Binding
                         return xValue;
                     return (T?)c.EvalPropertyValue(p, x);
                 }
-                else return (T?)p.DefaultValue;
+                else return defaultValue;
             }
-            public static void SetValueDirect(DotvvmBindableObject c, DotvvmProperty p, object? value)
+            public static void SetValueDirect(DotvvmBindableObject c, DotvvmPropertyId p, object? defaultValue, object? value)
             {
-                if (Object.Equals(p.DefaultValue, value) && !c.properties.Contains(p))
+                if (Object.Equals(defaultValue, value) && !c.properties.Contains(p))
                 {
                     // setting to default value and the property is not set -> do nothing
                 }

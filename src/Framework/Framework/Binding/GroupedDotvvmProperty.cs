@@ -16,28 +16,26 @@ namespace DotVVM.Framework.Binding
 
         IPropertyGroupDescriptor IGroupedPropertyDescriptor.PropertyGroup => PropertyGroup;
 
-        public GroupedDotvvmProperty(string groupMemberName, DotvvmPropertyGroup propertyGroup)
+        private GroupedDotvvmProperty(string memberName, ushort memberId, DotvvmPropertyGroup group)
+            : base(DotvvmPropertyId.CreatePropertyGroupId(group.Id, memberId), group.Name + ":" + memberName, group.DeclaringType)
         {
-            this.GroupMemberName = groupMemberName;
-            this.PropertyGroup = propertyGroup;
+            this.GroupMemberName = memberName;
+            this.PropertyGroup = group;
         }
 
 
-        public static GroupedDotvvmProperty Create(DotvvmPropertyGroup group, string name)
+        public static GroupedDotvvmProperty Create(DotvvmPropertyGroup group, string name, ushort id)
         {
-            var propname = group.Name + ":" + name;
-            var prop = new GroupedDotvvmProperty(name, group) {
+            var prop = new GroupedDotvvmProperty(name, id, group) {
                 PropertyType = group.PropertyType,
-                DeclaringType = group.DeclaringType,
                 DefaultValue = group.DefaultValue,
                 IsValueInherited = false,
-                Name = propname,
                 ObsoleteAttribute = group.ObsoleteAttribute,
                 OwningCapability = group.OwningCapability,
                 UsedInCapabilities = group.UsedInCapabilities
             };
 
-            DotvvmProperty.InitializeProperty(prop, group.AttributeProvider);
+            DotvvmProperty.InitializeProperty(prop, group.AttributeProvider); // TODO: maybe inline and specialize to just copy the group attributes
             return prop;
         }
     }

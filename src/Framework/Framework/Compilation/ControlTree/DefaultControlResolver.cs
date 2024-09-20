@@ -1,11 +1,16 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using DotVVM.Framework.Binding;
+using DotVVM.Framework.Compilation.Binding;
 using DotVVM.Framework.Compilation.ControlTree.Resolved;
 using DotVVM.Framework.Configuration;
 using DotVVM.Framework.Controls;
@@ -24,10 +29,10 @@ namespace DotVVM.Framework.Compilation.ControlTree
         private readonly CompiledAssemblyCache compiledAssemblyCache;
         private readonly Dictionary<string, Type>? controlNameMappings;
 
-        private static object locker = new object();
-        private static bool isInitialized = false;
-        private static object dotvvmLocker = new object();
-        private static bool isDotvvmInitialized = false;
+        private static readonly object locker = new object();
+        private static volatile bool isInitialized = false;
+        private static readonly object dotvvmLocker = new object();
+        private static volatile bool isDotvvmInitialized = false;
 
 
         public DefaultControlResolver(DotvvmConfiguration configuration, IControlBuilderFactory controlBuilderFactory, CompiledAssemblyCache compiledAssemblyCache) : base(configuration.Markup)
@@ -65,6 +70,7 @@ namespace DotVVM.Framework.Compilation.ControlTree
                 lock(dotvvmLocker) {
                     if (isDotvvmInitialized) return;
                     InvokeStaticConstructorsOnAllControls(typeof(DotvvmControl).Assembly);
+                    isDotvvmInitialized = true;
                 }
             });
         }
@@ -74,29 +80,149 @@ namespace DotVVM.Framework.Compilation.ControlTree
         /// </summary>
         private void InvokeStaticConstructorsOnAllControls()
         {
-            var dotvvmAssembly = typeof(DotvvmControl).Assembly.GetName().Name!;
             var dotvvmInitTask = InvokeStaticConstructorsOnDotvvmControls();
 
-            if (configuration.ExperimentalFeatures.ExplicitAssemblyLoading.Enabled)
-            {
-                // use only explicitly specified assemblies from configuration
-                // and do not call GetTypeInfo to prevent unnecessary dependent assemblies from loading
-                var assemblies = compiledAssemblyCache.GetAllAssemblies()
-                    .Where(a => a.GetReferencedAssemblies().Any(r => r.Name == dotvvmAssembly))
-                    .Distinct();
+            var dotvvmAssembly = typeof(DotvvmControl).Assembly.GetName().Name!;
 
-                Parallel.ForEach(assemblies, a => {
-                    InvokeStaticConstructorsOnAllControls(a);
-                });
-            }
-            else
-            {
-                var assemblies = GetAllRelevantAssemblies(dotvvmAssembly);
-                Parallel.ForEach(assemblies, a => {
-                    InvokeStaticConstructorsOnAllControls(a);
-                });
-            }
+            var assemblies = configuration.ExperimentalFeatures.ExplicitAssemblyLoading.Enabled ?
+                // use only explicitly specified assemblies from configuration
+                compiledAssemblyCache.GetReferencedAssemblies() :
+                compiledAssemblyCache.GetAllAssemblies();
+            InvokeStaticConstructorsOnAllControls(OrderAndFilterAssemblies(assemblies, dotvvmAssembly));
             dotvvmInitTask.Wait();
+        }
+
+        /// <summary> Filters out assemblies which don't reference DotVVM.Framework, and topologically orders them according to their references, then alphabetically to resolve ties </summary>
+        private List<Assembly> OrderAndFilterAssemblies(IEnumerable<Assembly> assemblies, string rootAssembly)
+        {
+            var assemblyList = new List<Assembly>();
+            var renumbering = new Dictionary<string, int>();
+            var references = new List<AssemblyName[]>();
+
+            var namelessAssemblies = new List<Assembly>(); // place them at the end
+            foreach (var a in assemblies)
+            {
+                var name = a.GetName();
+                var r = a.GetReferencedAssemblies();
+                if (ReferencesAssembly(r, rootAssembly))
+                {
+                    if (name.Name is null)
+                        namelessAssemblies.Add(a);
+                    else if (renumbering.TryAdd(name.Name, assemblyList.Count))
+                    {
+                        assemblyList.Add(a);
+                        references.Add(r);
+                    }
+                }
+            }
+
+            // Kahn's algorithm - https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
+            // with additional sorting step to resolve ties
+            var inDegree = new int[assemblyList.Count];
+            var forwardReferences = new List<int>?[assemblyList.Count];
+            var roots = new List<int>();
+            for (int i = 0; i < references.Count; i++)
+            {
+                var inCount = 0;
+                foreach (var r in references[i])
+                    if (renumbering.TryGetValue(r.Name!, out var idx))
+                    {
+                        inCount++;
+                        forwardReferences[idx] ??= new List<int>();
+                        forwardReferences[idx]!.Add(i);
+                    }
+                inDegree[i] = inCount;
+                if (inCount == 0)
+                    roots.Add(i);
+            }
+
+            var sorted = new List<Assembly>(capacity: assemblyList.Count + namelessAssemblies.Count);
+            var newRoots = new List<int>();
+            var comparer = makeComparator(assemblyList);
+            while (roots.Count > 0)
+            {
+                if (roots.Count > 1)
+                    roots.Sort(comparer);
+
+                foreach (var item in roots)
+                {
+                    sorted.Add(assemblyList[item]);
+                    if (forwardReferences[item] is null)
+                        continue;
+                    foreach (var r in forwardReferences[item]!)
+                    {
+                        inDegree[r]--;
+                        if (inDegree[r] == 0)
+                            newRoots.Add(r);
+                    }
+                }
+                roots.Clear();
+                (roots, newRoots) = (newRoots, roots);
+            }
+
+            // no need to throw in production, we only want the topological ordering for consistent property IDs
+            Debug.Assert(sorted.Count == assemblyList.Count, "Loop in assembly references detected");
+
+            sorted.AddRange(namelessAssemblies);
+            return sorted;
+        
+            static Comparison<int> makeComparator(List<Assembly> assemblyList) => (a, b) => string.Compare(assemblyList[a].GetName().Name, assemblyList[b].GetName().Name, StringComparison.Ordinal);
+        }
+        static bool ReferencesAssembly(AssemblyName[] references, string root)
+        {
+            foreach (var r in references)
+                if (r.Name == root)
+                    return true;
+            return false;
+        }
+
+        private void InvokeStaticConstructorsOnAllControls(List<Assembly> assemblies)
+        {
+            // try to assign property IDs consistently across runs, as the order of properties depends on this which may be observable to the user
+            // we first assigns IDs to all controls is each assembly, then we run the static constructors in parallel
+
+            // this means we sequence the control registration, while parallelizing assembly loading and property registration
+            // in practice, control registration is trivial, the main performance hit might arrise from a single assembly taking longer to load
+
+            //   Assembly1 loading ................|register controls|register properties
+            //    Assembly2 loading. waiting                         |registercontrols|...
+            //     Assembly3 loading. waiting                                         |registercontrols|...
+
+            var paralelismLimiter = new SemaphoreSlim(Environment.ProcessorCount);
+
+            var controlIdsAssigned = Enumerable.Range(0, assemblies.Count).Select(_ => new TaskCompletionSource()).ToArray();
+
+            var tasks = Enumerable.Range(0, assemblies.Count).Select(i => Task.Run(async () => {
+                await paralelismLimiter.WaitAsync();
+                try {
+                    var controls = new List<Type>();
+                    foreach (var type in assemblies[i].GetLoadableTypes())
+                    {
+                        if (type.IsClass && !type.ContainsGenericParameters && type.IsDefined(typeof(ContainsDotvvmPropertiesAttribute), true))
+                        {
+                            controls.Add(type);
+                        }
+                    }
+                    // wait for the previous assembly to finish loading and assigning control IDs
+                    if (i > 0)
+                        await controlIdsAssigned[i - 1].Task;
+                    var controlIds = new ushort[controls.Count];
+                    DotvvmPropertyIdAssignment.RegisterTypes(CollectionsMarshal.AsSpan(controls), controlIds);
+                    
+                    // let the next assembly run
+                    controlIdsAssigned[i].SetResult();
+
+                    foreach (var type in controls)
+                    {
+                        InitType(type);
+                    }
+                }
+                finally {
+                    paralelismLimiter.Release();
+                }
+
+            })).ToArray();
+            Task.WaitAll(tasks);
         }
 
         private static void InvokeStaticConstructorsOnAllControls(Assembly assembly)
@@ -106,7 +232,6 @@ namespace DotVVM.Framework.Compilation.ControlTree
                 if (!c.IsClass || c.ContainsGenericParameters)
                     continue;
 
-                
                 InitType(c);
             }
         }
@@ -162,14 +287,13 @@ namespace DotVVM.Framework.Compilation.ControlTree
             }
         }
 
-        private IEnumerable<Assembly> GetAllRelevantAssemblies(string dotvvmAssembly)
+        private Assembly[] GetAllRelevantAssemblies(string dotvvmAssembly)
         {
 #if DotNetCore
-            var assemblies = compiledAssemblyCache.GetAllAssemblies()
-                   .Where(a => a.GetReferencedAssemblies().Any(r => r.Name == dotvvmAssembly));
+            var assemblies = compiledAssemblyCache.GetAllAssemblies();
 #else
             var loadedAssemblies = compiledAssemblyCache.GetAllAssemblies()
-                .Where(a => a.GetReferencedAssemblies().Any(r => r.Name == dotvvmAssembly));
+                .Where(a => ReferencesAssembly(a.GetReferencedAssemblies(), dotvvmAssembly));
 
             var visitedAssemblies = new HashSet<string>();
 
@@ -186,8 +310,9 @@ namespace DotVVM.Framework.Compilation.ControlTree
                         throw new Exception($"Unable to load assembly '{an.FullName}' referenced by '{a.FullName}'.", ex);
                     }
                 }))
-                .Where(a => a.GetReferencedAssemblies().Any(r => r.Name == dotvvmAssembly))
-                .Distinct();
+                .Where(a => ReferencesAssembly(a.GetReferencedAssemblies(), dotvvmAssembly))
+                .Distinct()
+                .ToArray();
 #endif
             return assemblies;
         }

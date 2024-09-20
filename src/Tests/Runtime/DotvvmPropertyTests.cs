@@ -356,5 +356,20 @@ namespace DotVVM.Framework.Tests.Runtime
                 }
             }
         }
+
+        [TestMethod]
+        public void DotvvmProperty_ManyItemsSetter()
+        {
+            var properties = Enumerable.Range(0, 1000).Select(i => HtmlGenericControl.AttributesGroupDescriptor.GetDotvvmProperty("data-" + i.ToString())).ToArray();
+
+            var setter = PropertyImmutableHashtable.CreateBulkSetter(properties, Enumerable.Range(0, 1000).Select(i => (object?)i).ToArray());
+
+            var control1 = new HtmlGenericControl("div");
+            setter(control1);
+            var control2 = new HtmlGenericControl("div");
+            setter(control2);
+
+            Assert.AreEqual(1000, control1.Properties.Count);
+        }
     }
 }
