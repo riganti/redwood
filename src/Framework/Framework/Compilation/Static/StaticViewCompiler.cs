@@ -10,6 +10,7 @@ using DotVVM.Framework.Compilation.ViewCompiler;
 using DotVVM.Framework.Configuration;
 using DotVVM.Framework.Hosting;
 using DotVVM.Framework.Security;
+using DotVVM.Framework.Utils;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -33,7 +34,7 @@ namespace DotVVM.Framework.Compilation.Static
                 diagnostics.AddRange(CompileNoThrow(configuration, markupControl!));
             }
 
-            var views = configuration.RouteTable.Select(r => r.VirtualPath).ToImmutableArray();
+            var views = configuration.RouteTable.Select(r => r.VirtualPath).WhereNotNull().ToImmutableArray();
             foreach(var view in views)
             {
                 diagnostics.AddRange(CompileNoThrow(configuration, view));

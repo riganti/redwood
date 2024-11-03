@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using DotVVM.Framework.Configuration;
+using DotVVM.Framework.Utils;
 
 namespace DotVVM.Framework.Hosting
 {
@@ -39,7 +40,8 @@ namespace DotVVM.Framework.Hosting
         /// </summary>
         public string GetMarkupFileVirtualPath(IDotvvmRequestContext context)
         {
-            return context.Route!.VirtualPath;
+            return context.Route!.VirtualPath
+                ?? throw new Exception($"The route {context.Route.RouteName} must have a non-null virtual path.");
         }
     }
 }
