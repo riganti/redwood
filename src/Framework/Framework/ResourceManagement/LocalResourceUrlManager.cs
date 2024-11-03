@@ -28,6 +28,7 @@ namespace DotVVM.Framework.ResourceManagement
             this.resourceRoute = new DotvvmRoute(
                 url: $"{HostingConstants.ResourceRouteName}/{{{HashParameterName}}}/{{{NameParameterName}:regex(.*)}}",
                 virtualPath: "",
+                name: $"_dotvvm_{nameof(LocalResourceUrlManager)}",
                 defaultValues: null,
                 presenterFactory: _ => throw new NotSupportedException(),
                 configuration: configuration);

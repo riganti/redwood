@@ -7,7 +7,7 @@ namespace DotVVM.Framework.Routing
 {
     public class RouteTableGroup
     {
-        public Action<string, RouteBase> AddToParentRouteTable { get; private set; }
+        public Action<RouteBase> AddToParentRouteTable { get; private set; }
 
         public Func<IServiceProvider, IDotvvmPresenter>? PresenterFactory { get; }
 
@@ -16,7 +16,7 @@ namespace DotVVM.Framework.Routing
         public string UrlPrefix { get; private set; }
         public string VirtualPathPrefix { get; private set; }
 
-        public RouteTableGroup(string groupName, string routeNamePrefix, string urlPrefix, string virtualPathPrefix, Action<string, RouteBase> addToParentRouteTable, Func<IServiceProvider, IDotvvmPresenter>? presenterFactory)
+        public RouteTableGroup(string groupName, string routeNamePrefix, string urlPrefix, string virtualPathPrefix, Action<RouteBase> addToParentRouteTable, Func<IServiceProvider, IDotvvmPresenter>? presenterFactory)
         {
             GroupName = groupName;
             RouteNamePrefix = routeNamePrefix;

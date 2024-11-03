@@ -117,11 +117,8 @@ namespace DotVVM.Framework.Routing
         /// <param name="virtualPath">The virtual path of the Dothtml file.</param>
         /// <param name="defaultValues">The default values.</param>
         /// <param name="presenterFactory">Delegate creating the presenter handling this route</param>
-        public void Add(string routeName, string? url, string virtualPath, object? defaultValues = null, Func<IServiceProvider, IDotvvmPresenter>? presenterFactory = null, LocalizedRouteUrl[]? localizedUrls = null)
+        public void Add(string routeName, string url, string? virtualPath, object? defaultValues = null, Func<IServiceProvider, IDotvvmPresenter>? presenterFactory = null, LocalizedRouteUrl[]? localizedUrls = null)
         {
-            ThrowIfFrozen();
-
-            virtualPath = CombinePath(group?.VirtualPathPrefix, virtualPath);
             AddCore(routeName, url, virtualPath, defaultValues, presenterFactory, localizedUrls);
         }
 
@@ -132,26 +129,74 @@ namespace DotVVM.Framework.Routing
         /// <param name="url">The URL.</param>
         /// <param name="defaultValues">The default values.</param>
         /// <param name="presenterFactory">The presenter factory.</param>
-        public void Add(string routeName, string? url, Func<IServiceProvider, IDotvvmPresenter>? presenterFactory = null, object? defaultValues = null, LocalizedRouteUrl[]? localizedUrls = null)
+        public void Add(string routeName, string url, Func<IServiceProvider, IDotvvmPresenter> presenterFactory, object? defaultValues = null, LocalizedRouteUrl[]? localizedUrls = null)
+        {
+            AddCore(routeName, url, virtualPath: null, defaultValues, presenterFactory, localizedUrls);
+        }
+
+        /// <summary>
+        /// Adds the specified route name.
+        /// </summary>
+        /// <param name="routeName">Name of the route.</param>
+        /// <param name="url">The URL.</param>
+        /// <param name="presenterType">The presenter factory.</param>
+        /// <param name="defaultValues">The default values.</param>
+        public void Add(string routeName, string url, Type presenterType, object? defaultValues = null, LocalizedRouteUrl[]? localizedUrls = null)
+        {
+            if (!typeof(IDotvvmPresenter).IsAssignableFrom(presenterType))
+            {
+                throw new ArgumentException($@"{nameof(presenterType)} has to inherit from DotVVM.Framework.Hosting.IDotvvmPresenter.", nameof(presenterType));
+            }
+            Func<IServiceProvider, IDotvvmPresenter> presenterFactory = provider => (IDotvvmPresenter)provider.GetRequiredService(presenterType);
+            AddCore(routeName, url, virtualPath: null, defaultValues, presenterFactory, localizedUrls);
+        }
+
+        /// <summary>
+        /// Adds the specified name.
+        /// </summary>
+        public void Add(RouteBase route)
+        {
+            ThrowIfFrozen();
+            if (dictionary.ContainsKey(route.RouteName))
+            {
+                throw new InvalidOperationException($"The route with name '{route.RouteName}' has already been registered!");
+            }
+
+            group?.AddToParentRouteTable?.Invoke(route);
+
+            // The list is used for finding the routes because it keeps the ordering, the dictionary is for checking duplicates
+            list.Add(new KeyValuePair<string, RouteBase>(route.RouteName, route));
+            dictionary.Add(route.RouteName, route);
+
+            if (route is IPartialMatchRoute partialMatchRoute)
+            {
+                partialMatchRoutes.Add(partialMatchRoute);
+            }
+        }
+
+        private void AddCore(string routeName, string url, string? virtualPath, object? defaultValues, Func<IServiceProvider, IDotvvmPresenter>? presenterFactory, LocalizedRouteUrl[]? localizedUrls = null)
         {
             ThrowIfFrozen();
 
-            var virtualPath = group?.VirtualPathPrefix ?? "";
-            AddCore(routeName, url, virtualPath, defaultValues, presenterFactory, localizedUrls);
-        }
-
-        private void AddCore(string routeName, string? url, string virtualPath, object? defaultValues, Func<IServiceProvider, IDotvvmPresenter>? presenterFactory, LocalizedRouteUrl[]? localizedUrls)
-        {
+            if (url == null)
+                throw new ArgumentNullException(nameof(url));
             url = CombinePath(group?.UrlPrefix, url);
+
+            virtualPath = CombinePath(group?.VirtualPathPrefix, virtualPath);
+            if (virtualPath == null && presenterFactory == null)
+            {
+                throw new ArgumentNullException(nameof(presenterFactory), "The presenterFactory argument must be set when virtualPath is null!");
+            }
+
             presenterFactory ??= GetDefaultPresenter;
             routeName = group?.RouteNamePrefix + routeName;
 
             RouteBase route = localizedUrls == null
-                ? new DotvvmRoute(url, virtualPath, defaultValues, presenterFactory, configuration)
+                ? new DotvvmRoute(url, virtualPath, routeName, defaultValues, presenterFactory, configuration)
                 : new LocalizedDotvvmRoute(url,
                     localizedUrls.Select(l => new LocalizedRouteUrl(l.CultureIdentifier, CombinePath(group?.UrlPrefix, l.RouteUrl))).ToArray(),
-                    virtualPath, defaultValues, presenterFactory, configuration);
-            Add(routeName, route);
+                    virtualPath, routeName, defaultValues, presenterFactory, configuration);
+            Add(route);
         }
 
         /// <summary>
@@ -171,7 +216,6 @@ namespace DotVVM.Framework.Routing
         /// <param name="targetUrlProvider">URL provider to obtain context-based redirection targets.</param>
         public void AddUrlRedirection(string routeName, string urlPattern, Func<IDotvvmRequestContext, string> targetUrlProvider, object? defaultValues = null, bool permanent = false)
         {
-            ThrowIfFrozen();
             IDotvvmPresenter presenterFactory(IServiceProvider serviceProvider) => new DelegatePresenter(context =>
             {
                 var targetUrl = targetUrlProvider(context);
@@ -181,7 +225,7 @@ namespace DotVVM.Framework.Routing
                 else
                     context.RedirectToUrl(targetUrl);
             });
-            Add(routeName, new DotvvmRoute(urlPattern, string.Empty, defaultValues, presenterFactory, configuration));
+            AddCore(routeName, urlPattern, virtualPath: null, defaultValues, presenterFactory);
         }
 
         /// <summary>
@@ -207,7 +251,6 @@ namespace DotVVM.Framework.Routing
             object? defaultValues = null, bool permanent = false, Func<IDotvvmRequestContext, Dictionary<string, object?>>? parametersProvider = null,
             Func<IDotvvmRequestContext, string>? urlSuffixProvider = null)
         {
-            ThrowIfFrozen();
             IDotvvmPresenter presenterFactory(IServiceProvider serviceProvider) => new DelegatePresenter(context =>
             {
                 var targetRouteName = targetRouteNameProvider(context);
@@ -219,50 +262,7 @@ namespace DotVVM.Framework.Routing
                 else
                     context.RedirectToRoute(targetRouteName, newParameterValues, urlSuffix: urlSuffix);
             });
-            Add(routeName, new DotvvmRoute(urlPattern, string.Empty, defaultValues, presenterFactory, configuration));
-        }
-
-        /// <summary>
-        /// Adds the specified route name.
-        /// </summary>
-        /// <param name="routeName">Name of the route.</param>
-        /// <param name="url">The URL.</param>
-        /// <param name="presenterType">The presenter factory.</param>
-        /// <param name="defaultValues">The default values.</param>
-        public void Add(string routeName, string? url, Type presenterType, object? defaultValues = null, LocalizedRouteUrl[]? localizedUrls = null)
-        {
-            ThrowIfFrozen();
-            if (!typeof(IDotvvmPresenter).IsAssignableFrom(presenterType))
-            {
-                throw new ArgumentException($@"{nameof(presenterType)} has to inherit from DotVVM.Framework.Hosting.IDotvvmPresenter.", nameof(presenterType));
-            }
-            Func<IServiceProvider, IDotvvmPresenter> presenterFactory = provider => (IDotvvmPresenter)provider.GetRequiredService(presenterType);
-            Add(routeName, url, presenterFactory, defaultValues, localizedUrls);
-        }
-
-        /// <summary>
-        /// Adds the specified name.
-        /// </summary>
-        public void Add(string routeName, RouteBase route)
-        {
-            ThrowIfFrozen();
-            if (dictionary.ContainsKey(routeName))
-            {
-                throw new InvalidOperationException($"The route with name '{routeName}' has already been registered!");
-            }
-            // internal assign routename
-            route.RouteName = routeName;
-
-            group?.AddToParentRouteTable?.Invoke(routeName, route);
-
-            // The list is used for finding the routes because it keeps the ordering, the dictionary is for checking duplicates
-            list.Add(new KeyValuePair<string, RouteBase>(routeName, route));
-            dictionary.Add(routeName, route);
-
-            if (route is IPartialMatchRoute partialMatchRoute)
-            {
-                partialMatchRoutes.Add(partialMatchRoute);
-            }
+            AddCore(routeName, urlPattern, virtualPath: null, defaultValues, presenterFactory);
         }
 
         public void AddPartialMatchHandler(IPartialMatchRouteHandler handler)
@@ -309,16 +309,21 @@ namespace DotVVM.Framework.Routing
             return GetEnumerator();
         }
 
-        private string CombinePath(string? prefix, string? appendedPath)
+        [return: NotNullIfNotNull(nameof(appendedPath))]
+        private string? CombinePath(string? prefix, string? appendedPath)
         {
             if (string.IsNullOrEmpty(prefix))
             {
-                return appendedPath ?? "";
+                return appendedPath;
             }
 
-            if (string.IsNullOrEmpty(appendedPath))
+            if (appendedPath == null)
             {
-                return prefix!;
+                return null;
+            }
+            else if (appendedPath == string.Empty)
+            {
+                return prefix ?? string.Empty;
             }
 
             return $"{prefix}/{appendedPath}";

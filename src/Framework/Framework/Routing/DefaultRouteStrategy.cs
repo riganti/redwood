@@ -107,10 +107,7 @@ namespace DotVVM.Framework.Routing
             var defaultParameters = GetRouteDefaultParameters(file);
             var presenterFactory = GetRoutePresenterFactory(file);
 
-            return new DotvvmRoute(url, file.AppRelativePath, defaultParameters, presenterFactory, configuration)
-            {
-                RouteName = routeName
-            };
+            return new DotvvmRoute(url, file.AppRelativePath, routeName, defaultParameters, presenterFactory, configuration);
         }
 
         protected virtual string GetRouteName(RouteStrategyMarkupFileInfo file)
@@ -162,7 +159,7 @@ namespace DotVVM.Framework.Routing
         protected override IEnumerable<RouteBase> BuildRoutes(RouteStrategyMarkupFileInfo file)
         {
             return getRouteList(file.AppRelativePath)
-                   .Select(url => new DotvvmRoute(url, file.AppRelativePath, GetRouteDefaultParameters(file), GetRoutePresenterFactory(file), this.configuration) { RouteName = url });
+                   .Select(url => new DotvvmRoute(url, file.AppRelativePath, url, GetRouteDefaultParameters(file), GetRoutePresenterFactory(file), this.configuration));
         }
     }
 }

@@ -1,13 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
 using DotVVM.Framework.Configuration;
 using DotVVM.Framework.Hosting;
 
@@ -36,34 +31,18 @@ namespace DotVVM.Framework.Routing
 
         public override IEnumerable<KeyValuePair<string, DotvvmRouteParameterMetadata>> ParameterMetadata => GetRouteForCulture(CultureInfo.CurrentUICulture).ParameterMetadata;
 
-        public override string RouteName
-        {
-            get
-            {
-                return base.RouteName;
-            }
-            internal set
-            {
-                base.RouteName = value;
-                foreach (var route in localizedRoutes)
-                {
-                    route.Value.RouteName = value;
-                }
-            }
-        }
-
         /// <summary>
         /// Initializes a new instance of the <see cref="DotvvmRoute"/> class.
         /// </summary>
-        public LocalizedDotvvmRoute(string defaultLanguageUrl, LocalizedRouteUrl[] localizedUrls, string virtualPath, object? defaultValues, Func<IServiceProvider, IDotvvmPresenter> presenterFactory, DotvvmConfiguration configuration)
-            : base(defaultLanguageUrl, virtualPath, defaultValues)
+        public LocalizedDotvvmRoute(string defaultLanguageUrl, LocalizedRouteUrl[] localizedUrls, string? virtualPath, string name, object? defaultValues, Func<IServiceProvider, IDotvvmPresenter> presenterFactory, DotvvmConfiguration configuration)
+            : base(defaultLanguageUrl, virtualPath, name, defaultValues, presenterFactory)
         {
             if (!localizedUrls.Any())
             {
                 throw new ArgumentException("There must be at least one localized route URL!", nameof(localizedUrls));
             }
 
-            var defaultRoute = new DotvvmRoute(defaultLanguageUrl, virtualPath, defaultValues, presenterFactory, configuration);
+            var defaultRoute = new DotvvmRoute(defaultLanguageUrl, virtualPath, name, defaultValues, presenterFactory, configuration);
 
             var sortedParameters = defaultRoute.ParameterMetadata
                 .OrderBy(n => n.Key)
@@ -71,7 +50,7 @@ namespace DotVVM.Framework.Routing
 
             foreach (var localizedUrl in localizedUrls)
             {
-                var localizedRoute = new DotvvmRoute(localizedUrl.RouteUrl, virtualPath, defaultValues, presenterFactory, configuration);
+                var localizedRoute = new DotvvmRoute(localizedUrl.RouteUrl, virtualPath, name, defaultValues, presenterFactory, configuration);
                 if (!localizedRoute.ParameterMetadata.OrderBy(n => n.Key)
                         .SequenceEqual(sortedParameters))
                 {

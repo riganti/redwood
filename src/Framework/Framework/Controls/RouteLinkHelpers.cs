@@ -194,7 +194,7 @@ namespace DotVVM.Framework.Controls
 
         private static Dictionary<string, object?> ComposeNewRouteParameters(RouteLink control, IDotvvmRequestContext context, RouteBase route)
         {
-            var parameters = new Dictionary<string, object?>(route.DefaultValues, StringComparer.OrdinalIgnoreCase);
+            var parameters = route.CloneDefaultValues();
             foreach (var param in context.Parameters!)
             {
                 parameters[param.Key] = param.Value;

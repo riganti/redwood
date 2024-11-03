@@ -1,21 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using DotVVM.Framework.Hosting;
 using System.Text.RegularExpressions;
 using DotVVM.Framework.Configuration;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using DotVVM.Framework.Utils;
 
 namespace DotVVM.Framework.Routing
 {
     public sealed class DotvvmRoute : RouteBase
     {
-        private Func<IServiceProvider,IDotvvmPresenter> presenterFactory;
-
         private Regex routeRegex;
         private List<Func<Dictionary<string, string?>, string>> urlBuilders;
         private List<KeyValuePair<string, Func<string, ParameterParseResult>?>> parameters;
@@ -35,42 +29,26 @@ namespace DotVVM.Framework.Routing
         /// <summary>
         /// Initializes a new instance of the <see cref="DotvvmRoute"/> class.
         /// </summary>
-#pragma warning disable CS8618
-        public DotvvmRoute(string url, string virtualPath, object? defaultValues, Func<IServiceProvider, IDotvvmPresenter> presenterFactory, DotvvmConfiguration configuration)
-            : base(url, virtualPath, defaultValues)
+        public DotvvmRoute(string url, string? virtualPath, string name, object? defaultValues, Func<IServiceProvider, IDotvvmPresenter> presenterFactory, DotvvmConfiguration configuration)
+            : base(url, virtualPath, name, defaultValues, presenterFactory)
         {
-            this.presenterFactory = presenterFactory;
-
             ParseRouteUrl(configuration);
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DotvvmRoute"/> class.
         /// </summary>
-        public DotvvmRoute(string url, string virtualPath, IDictionary<string, object?>? defaultValues, Func<IServiceProvider, IDotvvmPresenter> presenterFactory, DotvvmConfiguration configuration)
-            : base(url, virtualPath, defaultValues)
+        public DotvvmRoute(string url, string? virtualPath, string name, IDictionary<string, object?>? defaultValues, Func<IServiceProvider, IDotvvmPresenter> presenterFactory, DotvvmConfiguration configuration)
+            : base(url, virtualPath, name, defaultValues, presenterFactory)
         {
-            this.presenterFactory = presenterFactory;
-
             ParseRouteUrl(configuration);
         }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DotvvmRoute"/> class.
-        /// </summary>
-        public DotvvmRoute(string url, string virtualPath, string name, IDictionary<string, object?>? defaultValues, Func<IServiceProvider, IDotvvmPresenter> presenterFactory, DotvvmConfiguration configuration)
-            : base(url, virtualPath, name, defaultValues)
-        {
-            this.presenterFactory = presenterFactory;
-
-            ParseRouteUrl(configuration);
-        }
-#pragma warning restore CS8618
 
 
         /// <summary>
         /// Parses the route URL and extracts the components.
         /// </summary>
+        [MemberNotNull(nameof(routeRegex), nameof(urlBuilders), nameof(parameters), nameof(parameterMetadata), nameof(urlWithoutTypes))]
         private void ParseRouteUrl(DotvvmConfiguration configuration)
         {
             var parser = new DotvvmRouteParser(configuration.RouteConstraints);
@@ -99,8 +77,7 @@ namespace DotVVM.Framework.Routing
                 return false;
             }
 
-            values = new Dictionary<string, object?>(DefaultValues, StringComparer.OrdinalIgnoreCase);
-
+            values = CloneDefaultValues();
             foreach (var parameter in parameters)
             {
                 var g = match.Groups["param" + parameter.Key];
@@ -155,10 +132,6 @@ namespace DotVVM.Framework.Routing
             }
         }
 
-        /// <summary>
-        /// Processes the request.
-        /// </summary>
-        public override IDotvvmPresenter GetPresenter(IServiceProvider provider) => presenterFactory(provider);
         protected override void Freeze2()
         {
             // there is no property that would have to be frozen
