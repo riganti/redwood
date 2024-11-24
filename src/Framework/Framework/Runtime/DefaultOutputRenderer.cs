@@ -66,7 +66,16 @@ namespace DotVVM.Framework.Runtime
                         {
                             throw new DotvvmControlException(control, "This control cannot use PostBack.Update=\"true\" because it has dynamic ID. This happens when the control is inside a Repeater or other data-bound control and the RenderSettings.Mode=\"Client\".");
                         }
-                        yield return (clientId, w.ToString());
+                        var result = w.ToString();
+                        if (string.IsNullOrWhiteSpace(result))
+                        {
+                            throw new DotvvmControlException(control, "The PostBack.Update=\"true\" property is set on this control, but the control does not render anything. ");
+                        }
+                        if (!result.Contains(clientId))
+                        {
+                            throw new DotvvmControlException(control, "The PostBack.Update=\"true\" property is set on this control, but the control does not render the correct client ID.");
+                        }
+                        yield return (clientId, result);
                     }
                 }
                 else

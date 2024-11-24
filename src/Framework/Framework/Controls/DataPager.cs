@@ -163,7 +163,7 @@ namespace DotVVM.Framework.Controls
         {
             Children.Clear();
 
-            var dataSetBinding = GetValueBinding(DataSetProperty)!;
+            var dataSetBinding = GetDataSetBinding();
             var dataSetType = dataSetBinding.ResultType;
 
             var commandType = LoadData is {} ? GridViewDataSetCommandType.LoadDataDelegate : GridViewDataSetCommandType.Default;
@@ -318,8 +318,9 @@ namespace DotVVM.Framework.Controls
 
             if (this.LoadData is {} loadData)
             {
+                var dataSetBinding = GetDataSetBinding() as IValueBinding ?? throw new DotvvmControlException(this, "The DataSet property must set to a value binding when LoadData command is used!");
                 var helperBinding = new KnockoutBindingGroup();
-                helperBinding.Add("dataSet", GetDataSetBinding().GetKnockoutBindingExpression(this, unwrapped: true));
+                helperBinding.Add("dataSet", dataSetBinding.GetKnockoutBindingExpression(this, unwrapped: true));
                 var loadDataExpression = KnockoutHelper.GenerateClientPostbackLambda("LoadData", loadData, this, new PostbackScriptOptions(elementAccessor: "$element", koContext: CodeParameterAssignment.FromIdentifier("$context")));
                 helperBinding.Add("loadDataSet", loadDataExpression);
                 writer.AddKnockoutDataBind("dotvvm-gridviewdataset", helperBinding.ToString());
@@ -356,8 +357,7 @@ namespace DotVVM.Framework.Controls
         {
         }
 
-
-        private IValueBinding GetDataSetBinding()
-            => GetValueBinding(DataSetProperty) ?? throw new DotvvmControlException(this, "The DataSet property of the dot:DataPager control must be set!");
+        private IStaticValueBinding GetDataSetBinding()
+            => GetValueOrResourceBinding(DataSetProperty) ?? throw new DotvvmControlException(this, "The DataSet property of the dot:DataPager control must be set!");
     }
 }

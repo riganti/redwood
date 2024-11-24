@@ -38,7 +38,7 @@ namespace DotVVM.Framework.Binding
 
             var introMsg =
                 isRequiredProperty ?
-                $"Could not initialize binding as it is missing a required property {properties[0].Name}" :
+                $"Could not initialize binding '{binding}' as it is missing a required property {properties[0].Name}" :
                 $"Unable to get property {properties[0].Name}";
 
             var pathMsg = "";

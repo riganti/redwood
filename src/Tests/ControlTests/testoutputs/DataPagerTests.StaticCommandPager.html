@@ -17,13 +17,13 @@
 			<!-- ko foreach: { data: Customers()?.PagingOptions()?.NearPageIndexes } -->
 			<li data-bind="css: { active: $data == $parent.Customers()?.PagingOptions()?.PageIndex() }">
 				<!-- ko if: $data != $parent.Customers()?.PagingOptions()?.PageIndex() -->
-				<a data-bind="text: $data + 1" href="javascript:;" onclick="dotvvm.applyPostbackHandlers(async (options) => {
+				<a data-bind="text: dotvvm.globalize.bindingNumberToString($data + 1)" href="javascript:;" onclick="dotvvm.applyPostbackHandlers(async (options) => {
 	let cx = options.knockoutContext;
 	return await dotvvm.dataSet.loadDataSet(cx.$parent.Customers, (options) => dotvvm.dataSet.translations.PagingOptions.goToPage(ko.unwrap(options).PagingOptions, cx.$rawData.state), cx.$gridViewDataSetHelper.loadDataSet, cx.$gridViewDataSetHelper.postProcessor);
 },this).catch(dotvvm.log.logPostBackScriptError);event.stopPropagation();return false;"></a>
 				<!-- /ko -->
 				<!-- ko if: $data == $parent.Customers()?.PagingOptions()?.PageIndex() -->
-				<span data-bind="text: $data + 1"></span>
+				<span data-bind="text: dotvvm.globalize.bindingNumberToString($data + 1)"></span>
 				<!-- /ko -->
 			</li>
 			<!-- /ko -->

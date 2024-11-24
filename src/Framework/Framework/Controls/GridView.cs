@@ -332,15 +332,9 @@ namespace DotVVM.Framework.Controls
 
             if (!isHeaderCell)
             {
-                var cssClassBinding = column.GetValueBinding(GridViewColumn.CssClassProperty);
-                if (cssClassBinding != null)
-                {
-                    cellAttributes["class"] = cssClassBinding;
-                }
-                else if (!string.IsNullOrWhiteSpace(column.CssClass))
-                {
-                    cellAttributes["class"] = column.CssClass;
-                }
+                if (column.GetValueRaw(GridViewColumn.CssClassProperty) is {} cssClassBinding &&
+                    cssClassBinding is not "")
+                    cellAttributes.Set("class", cssClassBinding);
             }
             else
             {

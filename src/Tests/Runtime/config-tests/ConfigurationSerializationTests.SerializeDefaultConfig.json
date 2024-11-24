@@ -468,7 +468,6 @@
     "DotVVM.Framework.Controls.CheckBox": {
       "Checked": {
         "type": "System.Nullable`1[[System.Boolean, CoreLibrary]]",
-        "defaultValue": false,
         "onlyBindings": true
       },
       "CheckedItems": {
@@ -829,8 +828,7 @@
         "defaultValue": "None"
       },
       "ValueBinding": {
-        "type": "System.Boolean",
-        "defaultValue": false,
+        "type": "DotVVM.Framework.Binding.Expressions.IStaticValueBinding`1[[System.Nullable`1[[System.Boolean, CoreLibrary]], CoreLibrary]], DotVVM.Framework",
         "required": true,
         "onlyBindings": true
       }

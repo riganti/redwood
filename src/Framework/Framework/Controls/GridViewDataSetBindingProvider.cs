@@ -22,7 +22,7 @@ public class GridViewDataSetBindingProvider
 {
     private readonly BindingCompilationService service;
 
-    private readonly ConcurrentDictionary<(DataContextStack dataContextStack, IValueBinding dataSetBinding, GridViewDataSetCommandType commandType), DataPagerBindings> dataPagerCommands = new();
+    private readonly ConcurrentDictionary<(DataContextStack dataContextStack, IStaticValueBinding dataSetBinding, GridViewDataSetCommandType commandType), DataPagerBindings> dataPagerCommands = new();
     private readonly ConcurrentDictionary<(DataContextStack dataContextStack, IStaticValueBinding dataSetBinding, GridViewDataSetCommandType commandType), GridViewBindings> gridViewCommands = new();
 
     public GridViewDataSetBindingProvider(BindingCompilationService service)
@@ -31,7 +31,7 @@ public class GridViewDataSetBindingProvider
     }
 
     /// <summary> Returns pre-created DataPager bindings for a given data context and data source (result is cached). </summary>
-    public DataPagerBindings GetDataPagerBindings(DataContextStack dataContextStack, IValueBinding dataSetBinding, GridViewDataSetCommandType commandType)
+    public DataPagerBindings GetDataPagerBindings(DataContextStack dataContextStack, IStaticValueBinding dataSetBinding, GridViewDataSetCommandType commandType)
     {
         return dataPagerCommands.GetOrAdd((dataContextStack, dataSetBinding, commandType), x => GetDataPagerCommandsCore(x.dataContextStack, x.dataSetBinding, x.commandType));
     }
@@ -42,8 +42,9 @@ public class GridViewDataSetBindingProvider
         return gridViewCommands.GetOrAdd((dataContextStack, dataSetBinding, commandType), x => GetGridViewBindingsCore(x.dataContextStack, x.dataSetBinding, x.commandType));
     }
 
-    private DataPagerBindings GetDataPagerCommandsCore(DataContextStack dataContextStack, IValueBinding dataSetBinding, GridViewDataSetCommandType commandType)
+    private DataPagerBindings GetDataPagerCommandsCore(DataContextStack dataContextStack, IStaticValueBinding dataSetBinding, GridViewDataSetCommandType commandType)
     {
+        var isServerOnly = dataSetBinding is not IValueBinding;
         var dataSetExpr = dataSetBinding.GetProperty<ParsedExpressionBindingProperty>().Expression;
         ICommandBinding? GetCommandOrNull<T>(DataContextStack dataContextStack, string methodName, params Expression[] arguments)
         {
@@ -70,7 +71,7 @@ public class GridViewDataSetBindingProvider
         }
 
         var pageIndexDataContext = DataContextStack.CreateCollectionElement(
-            typeof(int), dataContextStack
+            typeof(int), dataContextStack, serverSideOnly: isServerOnly
         );
 
         var isFirstPage = GetValueBindingOrNull<IPageableGridViewDataSet<IPagingFirstPageCapability>, bool>(d => d.PagingOptions.IsFirstPage) ??
@@ -108,27 +109,29 @@ public class GridViewDataSetBindingProvider
             
             IsActivePage = // _this == _parent.DataSet.PagingOptions.PageIndex
                 typeof(IPageableGridViewDataSet<IPagingPageIndexCapability>).IsAssignableFrom(dataSetExpr.Type)
-                    ? new ValueBindingExpression<bool>(service, new object[] {
+                    ? ValueOrResourceBinding<bool>(isServerOnly, [
                         pageIndexDataContext,
                         new ParsedExpressionBindingProperty(Expression.Equal(
                             CreateParameter(pageIndexDataContext, "_thisIndex"),
                             Expression.Property(Expression.Property(dataSetExpr, "PagingOptions"), "PageIndex")
                         )),
-                    })
+                    ])
                     : null,
 
-            PageNumberText =
-                service.Cache.CreateValueBinding<string>("_this + 1", pageIndexDataContext),
+            PageNumberText = isServerOnly switch {
+                true => service.Cache.CreateResourceBinding<string>("_this + 1", pageIndexDataContext),
+                false => service.Cache.CreateValueBinding<string>("_this + 1", pageIndexDataContext)
+            },
             HasMoreThanOnePage =
                 GetValueBindingOrNull<IPageableGridViewDataSet<PagingOptions>, bool>(d => d.PagingOptions.PagesCount > 1) ??
                 (isFirstPage != null && isLastPage != null ?
-                    new ValueBindingExpression<bool>(service, new object[] {
+                    ValueOrResourceBinding<bool>(isServerOnly, [
                         dataContextStack,
                         new ParsedExpressionBindingProperty(Expression.Not(Expression.AndAlso(
                             isFirstPage.GetProperty<ParsedExpressionBindingProperty>().Expression,
                             isLastPage.GetProperty<ParsedExpressionBindingProperty>().Expression
                         )))
-                    }) : null)
+                    ]) : null)
         };
     }
 
@@ -189,22 +192,19 @@ public class GridViewDataSetBindingProvider
             expression = transformExpression(expression);
         }
 
+        return ValueOrResourceBinding<TResult>(isServerOnly,
+                    [
+                        new ParsedExpressionBindingProperty(expression),
+                        dataContextStack
+                    ]);
+    }
+
+    private IStaticValueBinding<T> ValueOrResourceBinding<T>(bool isServerOnly, object?[] properties)
+    {
         if (isServerOnly)
-        {
-            return new ResourceBindingExpression<TResult>(service,
-                    [
-                        new ParsedExpressionBindingProperty(expression),
-                        dataContextStack
-                    ]);
-        }
+            return new ResourceBindingExpression<T>(service, properties);
         else
-        {
-            return new ValueBindingExpression<TResult>(service,
-                    [
-                        new ParsedExpressionBindingProperty(expression),
-                        dataContextStack
-                    ]);
-        }
+            return new ValueBindingExpression<T>(service, properties);
     }
 
     private ICommandBinding CreateCommandBinding<TDataSetInterface>(GridViewDataSetCommandType commandType, Expression dataSet, DataContextStack dataContextStack, string methodName, Expression[] arguments, Func<Expression, Expression>? transformExpression = null)

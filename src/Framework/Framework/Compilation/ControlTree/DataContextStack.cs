@@ -44,6 +44,16 @@ namespace DotVVM.Framework.Compilation.ControlTree
             BindingPropertyResolvers = bindingPropertyResolvers?.ToImmutableArray() ?? ImmutableArray<Delegate>.Empty;
             ServerSideOnly = serverSideOnly;
 
+            if (ExtensionParameters.Length >= 2)
+            {
+                var set = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var p in ExtensionParameters)
+                {
+                    if (!set.Add(p.Identifier))
+                        throw new Exception($"Extension parameter '{p.Identifier}' is defined multiple times in the data context stack {this}");
+                }
+            }
+
             hashCode = ComputeHashCode();
         }
 

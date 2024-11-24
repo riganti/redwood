@@ -86,8 +86,7 @@ namespace DotVVM.Framework.Controls
             CopyPropertyRaw(UITests.NameProperty, literal, UITests.NameProperty);
 
             literal.SetBinding(Literal.TextProperty, binding);
-            if (binding is IValueBinding v)
-                Validator.Place(literal, container.Children, v, ValidatorPlacement);
+            Validator.Place(literal, container.Children, binding as IValueBinding, ValidatorPlacement);
             container.Children.Add(literal);
         }
 
@@ -101,11 +100,11 @@ namespace DotVVM.Framework.Controls
 
             var textBox = new TextBox();
 
+            var binding = ValueBinding;
             CopyPropertyRaw(FormatStringProperty, textBox, TextBox.FormatStringProperty);
-            textBox.SetBinding(TextBox.TextProperty, ValueBinding);
+            textBox.SetBinding(TextBox.TextProperty, binding);
             CopyPropertyRaw(ChangedBindingProperty, textBox, TextBox.ChangedProperty);
-            if (ValueBinding is IValueBinding v)
-                Validator.Place(textBox, container.Children, v, ValidatorPlacement);
+            Validator.Place(textBox, container.Children, binding as IValueBinding, ValidatorPlacement);
             container.Children.Add(textBox);
         }
     }

@@ -1,0 +1,85 @@
+@viewModel DotVVM.Samples.BasicSamples.ViewModels.ControlSamples.GridView.GridViewPagingSortingServerSideViewModel, DotVVM.Samples.Common
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Hello from DotVVM!</title>
+    <style type="text/css">
+        .alternate {
+            background-color: yellow;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GridView with IGridViewDataSet</h1>
+        <dot:GridView DataSource="{resource: CustomersDataSet}" class="table table-bordered" PostBack.Update>
+            <Columns>
+                <!-- comment inside columns collection -->
+                <dot:GridViewTextColumn HeaderText="Id" ValueBinding="{resource: CustomerId}" CssClass="{resource: CustomerId % 2 == 0 ? 'alternate' : ''}" AllowSorting="True" />
+                <dot:GridViewTextColumn HeaderText="Name" ValueBinding="{resource: Name}" AllowSorting="True" />
+                <dot:GridViewTextColumn ValueBinding="{resource: BirthDate}" FormatString="g" AllowSorting="True">
+                    <HeaderTemplate>
+                        <span class="class123">Birth date</span>
+                        <dot:Button Click="{command: _root.TestCommand()}" Text="Sort Button" ButtonTagName="button" />
+                    </HeaderTemplate>
+                </dot:GridViewTextColumn>
+                <dot:GridViewCheckBoxColumn HeaderText="Message received" ValueBinding="{resource: MessageReceived}" AllowSorting="True"></dot:GridViewCheckBoxColumn>
+            </Columns>
+            <!-- comment inside control -->
+        </dot:GridView>
+        <dot:DataPager DataSet="{resource: CustomersDataSet}" class="pagination" PostBack.Update />
+        <!-- comment outside control -->
+        <p>&nbsp;</p>
+        <p>&nbsp;</p>
+        <p>&nbsp;</p>
+
+        <h1>GridView with simple collection</h1>
+        <dot:GridView DataSource="{resource: Customers}" SortChanged="{resource: SortCustomers}" class="table table-bordered" PostBack.Update>
+            <Columns>
+                <dot:GridViewTextColumn HeaderText="Id" ValueBinding="{resource: CustomerId}" AllowSorting="True" />
+                <dot:GridViewTextColumn HeaderText="Name" ValueBinding="{resource: Name}" AllowSorting="True" />
+                <dot:GridViewTextColumn HeaderText="Birth Date" ValueBinding="{resource: BirthDate}" FormatString="g" AllowSorting="True" />
+            </Columns>
+        </dot:GridView>
+        <p PostBack.Update>Selected sort column: {{resource: SelectedSortColumn}}</p>
+        <p>&nbsp;</p>
+        <p>&nbsp;</p>
+        <p>&nbsp;</p>
+
+        <h1>GridView with null DataSource</h1>
+        <div PostBack.Update>
+            <dot:GridView DataSource="{resource: Null}" class="table table-bordered">
+                <Columns>
+                    <dot:GridViewTextColumn HeaderText="Id" ValueBinding="{resource: CustomerId}" AllowSorting="False" />
+                    <dot:GridViewTextColumn HeaderText="Name" ValueBinding="{resource: Name}" AllowSorting="False" />
+                    <dot:GridViewTextColumn HeaderText="Birth Date" ValueBinding="{resource: BirthDate}" FormatString="g" AllowSorting="False" />
+                </Columns>
+            </dot:GridView>
+        </div>
+        
+        <div PostBack.Update>
+            <h1>EmptyData with data source</h1>
+            <dot:EmptyData DataSource="{resource: CustomersDataSet}">
+                This is not displayed because data is not empty
+            </dot:EmptyData>
+            <h1>EmptyData with no data source</h1>
+            <dot:EmptyData DataSource="{resource: Null}">
+                This is displayed because data is empty
+            </dot:EmptyData>
+
+            <dot:Button Text="Set the data source" Click="{command: Null = GetDataList()}" />
+        </div>
+            
+        <h1>GridView with empty dataset and ShowHeaderWhenNoData true</h1>
+        <dot:GridView DataSource="{resource: EmptyCustomersDataSet}" data-ui="ShowHeaderWhenNoDataGrid" ShowHeaderWhenNoData="true" class="table table-bordered" PostBack.Update>
+            <Columns>
+                <!-- comment inside columns collection -->
+                <dot:GridViewTextColumn HeaderText="Id" ValueBinding="{resource: CustomerId}" CssClass="{resource: CustomerId % 2 == 0 ? 'alternate' : ''}" AllowSorting="True" />
+                <dot:GridViewTextColumn HeaderText="Name" ValueBinding="{resource: Name}" AllowSorting="True" />
+                <dot:GridViewTextColumn HeaderText="Birth date" ValueBinding="{resource: BirthDate}" FormatString="g" AllowSorting="True" />
+            </Columns>
+            <!-- comment inside control -->
+        </dot:GridView>
+    </div>
+</body>
+</html>
