@@ -97,7 +97,7 @@ namespace DotVVM.Framework.Controls
                 type != null && (type == typeof(float) || type == typeof(double) || type == typeof(decimal) ||
                 type == typeof(DateTime) || type == typeof(DateOnly) || type == typeof(TimeOnly) || isFormattedType(Nullable.GetUnderlyingType(type)));
 
-            bool isFormattedTypeOrObj(Type? type) => type == typeof(object) || isFormattedType(type);
+            bool isFormattedTypeOrObj(Type? type) => type is null || type == typeof(object) || isFormattedType(type);
 
             return isFormattedType(binding?.ResultType) && isFormattedTypeOrObj(binding?.GetProperty<ExpectedTypeBindingProperty>(ErrorHandlingMode.ReturnNull)?.Type);
         }

@@ -174,12 +174,20 @@ namespace DotVVM.Framework.Compilation.Binding
 
         public ResultTypeBindingProperty GetResultType(ParsedExpressionBindingProperty expression) => new ResultTypeBindingProperty(expression.Expression.Type);
 
-        public ExpectedTypeBindingProperty GetExpectedType(AssignedPropertyBindingProperty? property = null)
+        public ExpectedTypeBindingProperty? GetExpectedType(AssignedPropertyBindingProperty? property = null)
         {
             var prop = property?.DotvvmProperty;
-            if (prop == null) return new ExpectedTypeBindingProperty(typeof(object));
+            if (prop == null) return null;
 
-            return new ExpectedTypeBindingProperty(prop.IsBindingProperty ? (prop.PropertyType.GenericTypeArguments.SingleOrDefault() ?? typeof(object)) : prop.PropertyType);
+            if (prop.IsBindingProperty)
+            {
+                if (prop.PropertyType.GenericTypeArguments.SingleOrDefault() is {} type)
+                    return new ExpectedTypeBindingProperty(type);
+                else
+                    return null;
+            }
+
+            return new ExpectedTypeBindingProperty(prop.PropertyType);
         }
 
         public BindingCompilationRequirementsAttribute GetAdditionalResolversFromProperty(AssignedPropertyBindingProperty property)
@@ -264,9 +272,9 @@ namespace DotVVM.Framework.Compilation.Binding
                 (Expression)Expression.Not(e.Expression)
             ));
         }
-        public ExpectedAsStringBindingExpression ExpectAsStringBinding(ParsedExpressionBindingProperty e, ExpectedTypeBindingProperty expectedType, IBinding binding)
+        public ExpectedAsStringBindingExpression ExpectAsStringBinding(ParsedExpressionBindingProperty e, IBinding binding, ExpectedTypeBindingProperty? expectedType = null)
         {
-            if (expectedType.Type == typeof(string))
+            if (expectedType is {} && expectedType.Type == typeof(string))
                 return new(binding);
 
             return new(binding.DeriveBinding(new ExpectedTypeBindingProperty(typeof(string)), e));

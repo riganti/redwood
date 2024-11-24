@@ -119,8 +119,8 @@ public class GridViewDataSetBindingProvider
                     : null,
 
             PageNumberText = isServerOnly switch {
-                true => service.Cache.CreateResourceBinding<string>("_this + 1", pageIndexDataContext),
-                false => service.Cache.CreateValueBinding<string>("_this + 1", pageIndexDataContext)
+                true => service.Cache.CreateResourceBinding<string>("(_this + 1) + ''", pageIndexDataContext),
+                false => service.Cache.CreateValueBinding<string>("(_this + 1) + ''", pageIndexDataContext)
             },
             HasMoreThanOnePage =
                 GetValueBindingOrNull<IPageableGridViewDataSet<PagingOptions>, bool>(d => d.PagingOptions.PagesCount > 1) ??

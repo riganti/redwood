@@ -15,7 +15,7 @@ namespace DotVVM.AutoUI.PropertyHandlers.GridColumns
         protected override GridViewColumn CreateColumnCore(PropertyDisplayMetadata property, AutoGridViewColumn.Props props, AutoUIContext context)
         {
             var column = new GridViewCheckBoxColumn();
-            column.SetBinding(GridViewCheckBoxColumn.ValueBindingProperty, context.CreateValueBinding(property));
+            column.SetBinding(GridViewCheckBoxColumn.ValueBindingProperty, props.Property);
             return column;
         }
     }

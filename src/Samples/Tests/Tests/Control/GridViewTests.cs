@@ -510,10 +510,10 @@ namespace DotVVM.Samples.Tests.Control
         [Theory]
         [InlineData(SamplesRouteUrls.ControlSamples_GridView_GridViewPagingSorting)]
         [InlineData(SamplesRouteUrls.ControlSamples_GridView_GridViewServerRender)]
-        [InlineData(SamplesRouteUrls.ControlSamples_GridView_GridViewPagingSortingServerOnly)]
+        [InlineData(SamplesRouteUrls.ControlSamples_GridView_GridViewPagingSortingServerSide)]
         [SampleReference(nameof(SamplesRouteUrls.ControlSamples_GridView_GridViewPagingSorting))]
         [SampleReference(nameof(SamplesRouteUrls.ControlSamples_GridView_GridViewServerRender))]
-        [SampleReference(nameof(SamplesRouteUrls.ControlSamples_GridView_GridViewPagingSortingServerOnly))]
+        [SampleReference(nameof(SamplesRouteUrls.ControlSamples_GridView_GridViewPagingSortingServerSide))]
         public void Control_GridView_GridViewPagingSortingBase(string path)
         {
             RunInAllBrowsers(browser => {
