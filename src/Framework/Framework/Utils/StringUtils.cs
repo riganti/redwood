@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using DotVVM.Framework.Binding;
@@ -54,6 +57,150 @@ namespace DotVVM.Framework.Utils
             {
                 return source;
             }
+        }
+
+        public static string CreateString<T>(int length, T state, SpanAction<char, T> action)
+        {
+#if DotNetCore
+            return string.Create(length, state, action);
+#else
+            var buffer = ArrayPool<char>.Shared.Rent(length);
+            try
+            {
+                action(buffer.AsSpan(0, length), state);
+                return new string(buffer, 0, length);
+            }
+            finally
+            {
+                ArrayPool<char>.Shared.Return(buffer);
+            }
+#endif
+        }
+
+        // /// <summary> Appends <paramref name="combiner"/> to each grapheme cluster of the source string. </summary>
+        // internal static string AddCombinerToGraphemes(string source, string combiner, bool includeLast = true)
+        // {
+        //     if (source.Length == 0)
+        //         return "";
+
+        //     var buffer = ArrayPool<char>.Shared.Rent(source.Length * (1 + combiner.Length));
+        //     var bufferIndex = 0;
+
+        //     var enumerator = StringInfo.GetTextElementEnumerator(source);
+        //     // enumerator.ElementIndex points to the element start, but we also need the end index, so the loop is "one element behind" the enumerator
+        //     Debug.Assert(enumerator.MoveNext());
+        //     var lastIndex = enumerator.ElementIndex;
+        //     while (enumerator.MoveNext())
+        //     {
+        //         var length = enumerator.ElementIndex - lastIndex;
+        //         source.AsSpan(lastIndex, length).CopyTo(buffer.AsSpan(bufferIndex));
+
+        //         combiner.CopyTo(0, buffer, bufferIndex + length, combiner.Length);
+        //         lastIndex = enumerator.ElementIndex;
+        //         bufferIndex += length + combiner.Length;
+        //     }
+
+        //     // last element
+        //     source.AsSpan(lastIndex).CopyTo(buffer.AsSpan(bufferIndex));
+        //     bufferIndex += source.Length - lastIndex;
+        //     if (includeLast)
+        //     {
+        //         combiner.CopyTo(0, buffer, bufferIndex, combiner.Length);
+        //         bufferIndex += combiner.Length;
+        //     }
+
+        //     var result = new string(buffer, 0, bufferIndex);
+        //     ArrayPool<char>.Shared.Return(buffer);
+        //     return result;
+        // }
+
+        public static string UnicodeUnderline(string source)
+        {
+            var result = new StringBuilder();
+            char zwSpace = '\u200B';
+            char lowLine = '\u0332';
+            char doubleMacron = '\u035F';
+            char macron = '\u0331';
+
+            var enumerator = StringInfo.GetTextElementEnumerator(source);
+            bool isFirst = true;
+            // result.Append(zwSpace);
+            // result.Append(macron);
+            while (enumerator.MoveNext())
+            {
+                var element = enumerator.GetTextElement();
+                result.Append(element);
+
+                // we want s͟t͟r͟i͟n͟g not s͟t͟r͟i͟n͟g͟
+                var sticksDown = element switch {
+                    "q" or "y" or "g" or "p" or "j" => true,
+                    _ => false
+                };
+                if (sticksDown)
+                {
+                    // result.Append(zwSpace);
+                    // result.Append(macron);
+                    // ignore, next time put lowLine again
+                    isFirst = true;
+                }
+                else if (isFirst)
+                {
+                    // result.Append(lowLine);
+                    result.Append(doubleMacron);
+                    isFirst = false;
+                }
+                else
+                {
+                    result.Append(doubleMacron);
+                }
+            }
+            return result.ToString();
+        }
+
+        public static string UnicodeBold(string source)
+        {
+            var decomposed = source.Normalize(NormalizationForm.FormD);
+            var result = new StringBuilder();
+
+            foreach (var ch in decomposed)
+            {
+                if (ch >= 'A' && ch <= 'Z')
+                {
+                    result.Append("𝗔"[0]); // surrogate pair
+                    result.Append((char)("𝗔"[1] + (ch - 'a')));
+                }
+                else if (ch >= 'a' && ch <= 'z')
+                {
+                    result.Append("𝗮"[0]); // surrogate pair
+                    result.Append((char)("𝗮"[1] + (ch - 'a')));
+                }
+                else if (ch >= '0' && ch <= '9')
+                {
+                    result.Append("𝟬"[0]); // surrogate pair
+                    result.Append((char)("𝟬"[1] + (ch - 'a')));
+                }
+                else
+                {
+                    result.Append(ch);
+                }
+            }
+            return result.ToString();
+        }
+
+        public static string PadCenter(string str, int length)
+        {
+            var charBoundaries = StringInfo.ParseCombiningCharacters(str);
+            if (charBoundaries.Length >= length)
+                return str;
+
+            return CreateString(str.Length + length - charBoundaries.Length, (str, length, charBoundaries), (span, state) =>
+            {
+                var (str, length, charBoundaries) = state;
+                var start = (length - charBoundaries.Length) / 2;
+                span.Slice(0, start).Fill(' ');
+                str.AsSpan().CopyTo(span.Slice(start));
+                span.Slice(start + str.Length).Fill(' ');
+            });
         }
 
         internal static string DotvvmInternString(this char ch, string? str = null) =>
