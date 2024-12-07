@@ -211,7 +211,7 @@ namespace DotVVM.Framework.Binding
         {
             for (var p = control.Parent; p is not null; p = p.Parent)
             {
-                if (p.properties.TryGet(this, out var v))
+                if (p.properties.TryGet(Id, out var v))
                     return v;
             }
             return DefaultValue;
@@ -222,7 +222,7 @@ namespace DotVVM.Framework.Binding
         /// </summary>
         public virtual object? GetValue(DotvvmBindableObject control, bool inherit = true)
         {
-            if (control.properties.TryGet(this, out var value))
+            if (control.properties.TryGet(Id, out var value))
             {
                 return value;
             }
@@ -233,20 +233,29 @@ namespace DotVVM.Framework.Binding
             return DefaultValue;
         }
 
+        private bool IsSetInHierarchy(DotvvmBindableObject control)
+        {
+            for (var p = control.Parent; p is not null; p = p.Parent)
+            {
+                if (p.properties.Contains(Id))
+                    return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// Gets whether the value of the property is set
         /// </summary>
         public virtual bool IsSet(DotvvmBindableObject control, bool inherit = true)
         {
-            if (control.properties.Contains(this))
+            if (control.properties.Contains(Id))
             {
                 return true;
             }
 
-            if (IsValueInherited && inherit && control.Parent != null)
+            if (IsValueInherited && inherit)
             {
-                return IsSet(control.Parent);
+                return IsSetInHierarchy(control);
             }
 
             return false;
@@ -258,7 +267,7 @@ namespace DotVVM.Framework.Binding
         /// </summary>
         public virtual void SetValue(DotvvmBindableObject control, object? value)
         {
-            control.properties.Set(this, value);
+            control.properties.Set(Id, value);
         }
 
         /// <summary>

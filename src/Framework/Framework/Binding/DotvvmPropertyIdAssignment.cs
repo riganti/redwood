@@ -9,6 +9,7 @@ using System.Threading;
 using DotVVM.Framework.Compilation.ControlTree;
 using DotVVM.Framework.Controls;
 using DotVVM.Framework.Controls.Infrastructure;
+using FastExpressionCompiler;
 
 namespace DotVVM.Framework.Binding
 {
@@ -30,6 +31,19 @@ namespace DotVVM.Framework.Binding
         public ushort TypeId => (ushort)(Id >> 16);
         public ushort GroupId => (ushort)((Id >> 16) ^ 0x80_00);
         public ushort MemberId => (ushort)(Id & 0xFFFF);
+
+        /// <summary> Returns true if the property does not have GetValue/SetValue overrides and is not inherited. That means it is sufficient  </summary>
+        public bool CanUseFastAccessors
+        {
+            get
+            {
+                // properties: we encode this information as the LSB bit of the member ID (i.e. odd/even numbers)
+                // property groups: always true, i.e.
+                const uint mask = (1u << 31) | (1u);
+                const uint targetValue = 1u;
+                return (Id & mask) != targetValue;
+            }
+        }
 
         public bool IsZero => Id == 0;
 
@@ -105,16 +119,16 @@ namespace DotVVM.Framework.Binding
 #region Optimized metadata accessors
         public static bool IsInherited(DotvvmPropertyId propertyId)
         {
-            if (propertyId.IsPropertyGroup)
+            if (propertyId.CanUseFastAccessors)
                 return false;
+
             return BitmapRead(controls[propertyId.TypeId].inheritedBitmap, propertyId.MemberId);
         }
 
         public static bool UsesStandardAccessors(DotvvmPropertyId propertyId)
         {
-            if (propertyId.IsPropertyGroup)
+            if (propertyId.CanUseFastAccessors)
             {
-                // property groups can't override GetValue, otherwise VirtualPropertyGroupDictionary wouldn't work either
                 return true;
             }
             else
@@ -191,9 +205,8 @@ namespace DotVVM.Framework.Binding
 
         public static object? GetValueRaw(DotvvmBindableObject obj, DotvvmPropertyId id, bool inherit = true)
         {
-            if (id.IsPropertyGroup)
+            if (id.CanUseFastAccessors)
             {
-                // property groups can't override GetValue
                 if (obj.properties.TryGet(id, out var value))
                     return value;
 
@@ -201,7 +214,6 @@ namespace DotVVM.Framework.Binding
             }
             else
             {
-                // TODO: maybe try if using the std/inherit bitmaps would be faster
                 var property = controls[id.TypeId].properties[id.MemberId];
                 return property!.GetValue(obj, inherit);
             }
@@ -300,16 +312,37 @@ namespace DotVVM.Framework.Binding
             if (property.GetType() == typeof(GroupedDotvvmProperty))
                 throw new ArgumentException("RegisterProperty cannot be called with GroupedDotvvmProperty!");
 
+            var typeCanUseDirectAccess = TypeCanUseAnyDirectAccess(property.GetType());
+            var canUseDirectAccess = !property.IsValueInherited && typeCanUseDirectAccess;
+
             var typeId = RegisterType(property.DeclaringType);
             ref ControlTypeInfo control = ref controls[typeId];
-            lock (control.locker)
+            lock (control.locker) // single control registrations are sequential anyway
             {
-                var id = ++control.counter;
+                uint id;
+                if (canUseDirectAccess)
+                {
+                    control.counterStandard += 1;
+                    id = control.counterStandard * 2;
+                }
+                else
+                {
+                    control.counterNonStandard += 1;
+                    id = control.counterNonStandard * 2 + 1;
+                }
                 if (id > ushort.MaxValue)
-                    throw new Exception("Too many properties registered for a single control type.");
+                    ThrowTooManyException(property);
+
+                // resize arrays (we hold a write lock, but others may be reading in parallel)
                 if (id >= control.properties.Length)
                 {
                     VolatileResize(ref control.properties, control.properties.Length * 2);
+                }
+                if (id / 64 >= control.inheritedBitmap.Length)
+                {
+                    Debug.Assert(control.inheritedBitmap.Length == control.standardBitmap.Length);
+                    Debug.Assert(control.inheritedBitmap.Length == control.activeBitmap.Length);
+
                     VolatileResize(ref control.inheritedBitmap, control.inheritedBitmap.Length * 2);
                     VolatileResize(ref control.standardBitmap, control.standardBitmap.Length * 2);
                     VolatileResize(ref control.activeBitmap, control.activeBitmap.Length * 2);
@@ -317,7 +350,7 @@ namespace DotVVM.Framework.Binding
 
                 if (property.IsValueInherited)
                     BitmapSet(control.inheritedBitmap, (uint)id);
-                if (property.GetType() == typeof(DotvvmProperty))
+                if (typeCanUseDirectAccess)
                     BitmapSet(control.standardBitmap, (uint)id);
                 if (property is ActiveDotvvmProperty)
                     BitmapSet(control.activeBitmap, (uint)id);
@@ -325,6 +358,39 @@ namespace DotVVM.Framework.Binding
                 control.properties[id] = property;
                 return new DotvvmPropertyId(typeId, (ushort)id);
             }
+
+            static void ThrowTooManyException(DotvvmProperty property) =>
+                throw new Exception($"Too many properties registered for a single control type ({property.DeclaringType.ToCode()}). Trying to register property '{property.Name}: {property.PropertyType.ToCode()}'");
+        }
+
+        private static readonly ConcurrentDictionary<Type, (bool getter, bool setter)> cacheTypeCanUseDirectAccess = new(concurrencyLevel: 1, capacity: 10);
+        /// <summary> Does the property use the default GetValue/SetValue methods? </summary>
+        public static (bool getter, bool setter) TypeCanUseDirectAccess(Type propertyType)
+        {
+            if (propertyType == typeof(DotvvmProperty) || propertyType == typeof(GroupedDotvvmProperty))
+                return (true, true);
+
+            if (propertyType == typeof(DotvvmCapabilityProperty) || propertyType == typeof(DotvvmPropertyAlias) || propertyType == typeof(CompileTimeOnlyDotvvmProperty))
+                return (false, false);
+
+            if (propertyType.IsGenericType)
+            {
+                propertyType = propertyType.GetGenericTypeDefinition();
+                if (propertyType == typeof(DelegateActionProperty<>))
+                    return (true, true);
+            }
+
+            return cacheTypeCanUseDirectAccess.GetOrAdd(propertyType, static t =>
+            {
+                var getter = t.GetMethod(nameof(DotvvmProperty.GetValue), new [] { typeof(DotvvmBindableObject), typeof(bool) })!.DeclaringType == typeof(DotvvmProperty);
+                var setter = t.GetMethod(nameof(DotvvmProperty.SetValue), new [] { typeof(DotvvmBindableObject), typeof(object) })!.DeclaringType == typeof(DotvvmProperty);
+                return (getter, setter);
+            });
+        }
+        public static bool TypeCanUseAnyDirectAccess(Type propertyType)
+        {
+            var (getter, setter) = TypeCanUseDirectAccess(propertyType);
+            return getter && setter;
         }
 
         public static ushort RegisterPropertyGroup(DotvvmPropertyGroup group)
@@ -351,10 +417,10 @@ namespace DotVVM.Framework.Binding
         /// <summary> Thread-safe to read from the array while we are resizing </summary>
         private static void VolatileResize<T>(ref T[] array, int newSize)
         {
-            var local = array;
-            Array.Resize(ref local, newSize);
-            Thread.MemoryBarrier(); // prevent reordering of the array assignment and array contents copy on weakly-ordered platforms
-            array = local;
+            var localRef = array;
+            var newArray = new T[newSize];
+            localRef.AsSpan().CopyTo(newArray.AsSpan(0, localRef.Length));
+            Volatile.Write(ref array, newArray);
         }
 
 #endregion Registration
@@ -423,13 +489,14 @@ namespace DotVVM.Framework.Binding
 
         private struct ControlTypeInfo
         {
-            public object locker;
             public DotvvmProperty?[] properties;
-            public Type controlType;
             public ulong[] inheritedBitmap;
             public ulong[] standardBitmap;
             public ulong[] activeBitmap;
-            public int counter;
+            public object locker;
+            public Type controlType;
+            public uint counterStandard;
+            public uint counterNonStandard;
         }
 
         public static class GroupMembers
@@ -461,5 +528,9 @@ namespace DotVVM.Framework.Binding
             // public const short Internal = 4;
         }
 
+        public static class PropertyIds
+        {
+            public const uint DotvvmBindableObject_DataContext = TypeIds.DotvvmBindableObject << 16 | 1;
+        }
     }
 }

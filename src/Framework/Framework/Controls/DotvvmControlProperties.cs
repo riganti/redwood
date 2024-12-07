@@ -180,7 +180,7 @@ namespace DotVVM.Framework.Controls
             if (keys != null)
             {
                 Debug.Assert(values is object[]);
-                Debug.Assert(keys is DotvvmPropertyId[]);
+                Debug.Assert(keys is not null);
                 var index = PropertyImmutableHashtable.FindSlot(this.keys, this.hashSeed, p);
                 if (index >= 0)
                 {

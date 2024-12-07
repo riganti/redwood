@@ -116,11 +116,7 @@ namespace DotVVM.Framework.Binding
 
                 // if the property does not override GetValue/SetValue, we'll use
                 // control.properties dictionary directly to avoid virtual method calls
-                var canUseDirectAccess =
-                    !property.IsValueInherited && (
-                    property.GetType() == typeof(DotvvmProperty) ||
-                    property.GetType().GetMethod(nameof(DotvvmProperty.GetValue), new [] { typeof(DotvvmBindableObject), typeof(bool) })!.DeclaringType == typeof(DotvvmProperty) &&
-                    property.GetType().GetMethod(nameof(DotvvmProperty.SetValue), new [] { typeof(DotvvmBindableObject), typeof(object) })!.DeclaringType == typeof(DotvvmProperty));
+                var canUseDirectAccess = !property.IsValueInherited && DotvvmPropertyIdAssignment.TypeCanUseAnyDirectAccess(property.GetType());
 
                 var valueParameter = Expression.Parameter(type, "value");
                 var unwrappedType = type.UnwrapNullableType();
