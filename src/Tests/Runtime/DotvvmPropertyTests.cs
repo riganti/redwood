@@ -303,6 +303,8 @@ namespace DotVVM.Framework.Tests.Runtime
                     foreach (var example in GetExampleValues(p.PropertyType))
                     {
                         instance.SetValue(p, example);
+                        Assert.AreEqual(example, instance.GetValue(p), $"GetValue is behaving weird {p}");
+                        Assert.AreEqual(example, instance.GetValueRaw(p.Id), $"GetValue(id) is behaving weird {p}");
                         Assert.AreEqual(example, p.PropertyInfo.GetValue(instance), $"Getter is broken in {p}");
                     }
 
@@ -370,6 +372,59 @@ namespace DotVVM.Framework.Tests.Runtime
             setter(control2);
 
             Assert.AreEqual(1000, control1.Properties.Count);
+        }
+
+        [TestMethod]
+        [DataRow(false, false)]
+        [DataRow(false, true)]
+        [DataRow(true, false)]
+        [DataRow(true, true)]
+        public void DotvvmProperty_ControlClone(bool manyAttributes, bool nestedControl)
+        {
+            var control = new HtmlGenericControl("div");
+            control.CssStyles.Set("color", "red");
+            control.Attributes.Set("something", "value");
+
+            if (manyAttributes)
+                for (int i = 0; i < 60; i++)
+                    control.Attributes.Set("data-" + i.ToString(), i.ToString());
+
+            if (nestedControl)
+            {
+                control.Properties.Add(Styles.ReplaceWithProperty, new HtmlGenericControl("span") { InnerText = "23" });
+            }
+
+            var clone = (HtmlGenericControl)control.CloneControl();
+
+            Assert.AreEqual(control.TagName, clone.TagName);
+            Assert.AreEqual(control.CssStyles["color"], "red");
+
+            // change original
+            Assert.IsFalse(clone.CssStyles.ContainsKey("abc"));
+            control.CssStyles.Set("color", "blue");
+            control.CssStyles.Set("abc", "1");
+            Assert.AreEqual("red", clone.CssStyles["color"]);
+            Assert.IsFalse(clone.CssStyles.ContainsKey("abc"));
+
+            if (nestedControl)
+            {
+                var nestedClone = (HtmlGenericControl)clone.Properties[Styles.ReplaceWithProperty]!;
+                var nestedOriginal = (HtmlGenericControl)control.Properties[Styles.ReplaceWithProperty]!;
+                Assert.AreEqual("23", nestedClone.InnerText);
+                // change clone this time
+                nestedClone.InnerText = "24";
+                Assert.AreEqual("23", nestedOriginal.InnerText);
+                Assert.AreEqual("24", nestedClone.InnerText);
+            }
+
+            if (manyAttributes)
+            {
+                for (int i = 0; i < 60; i++)
+                {
+                    Assert.AreEqual(i.ToString(), control.Attributes["data-" + i.ToString()]);
+                    Assert.AreEqual(i.ToString(), clone.Attributes["data-" + i.ToString()]);
+                }
+            }
         }
     }
 }

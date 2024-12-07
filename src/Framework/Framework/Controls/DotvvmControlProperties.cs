@@ -45,12 +45,12 @@ namespace DotVVM.Framework.Controls
         }
         private bool ownsKeys
         {
-            readonly get => (flags >> 30) != 0;
+            readonly get => ((flags >> 30) & 1) != 0;
             set => flags = (flags & ~(1u << 30)) | ((uint)BoolToInt(value) << 30);
         }
         private bool ownsValues
         {
-            readonly get => (flags >> 31) != 0;
+            readonly get => ((flags >> 31) & 1) != 0;
             set => flags = (flags & ~(1u << 31)) | ((uint)BoolToInt(value) << 31);
         }
 
@@ -260,6 +260,7 @@ namespace DotVVM.Framework.Controls
             else
             {
                 Debug.Assert(values is Dictionary<DotvvmPropertyId, object?>);
+                OwnValues();
                 valuesAsDictionary[p] = value;
             }
         }
@@ -320,10 +321,12 @@ namespace DotVVM.Framework.Controls
                     return Object.ReferenceEquals(existingValue, value);
                 else
                 {
+                    OwnValues();
                     valuesAsDictionary.Add(p, value);
                     return true;
                 }
 #else
+                OwnValues();
                 return valuesAsDictionary.TryAdd(p, value) || Object.ReferenceEquals(valuesAsDictionary[p], value);
 #endif
             }
@@ -408,23 +411,40 @@ namespace DotVVM.Framework.Controls
             else if (this.keys == null)
             {
                 var dictionary = this.valuesAsDictionary;
-                if (dictionary.Count > 30)
+                if (dictionary.Count > 8)
                 {
                     newDict = this;
                     newDict.keys = null;
-                    newDict.valuesAsDictionary = new Dictionary<DotvvmPropertyId, object?>(dictionary);
+                    Dictionary<DotvvmPropertyId, object?>? newValues = null;
                     foreach (var (key, value) in dictionary)
                         if (CloneValue(value) is {} newValue)
+                        {
+                            if (newValues is null)
+                                // ok, we have to copy it
+                                newValues = new Dictionary<DotvvmPropertyId, object?>(dictionary);
                             newDict.valuesAsDictionary[key] = newValue;
+                        }
+
+                    if (newValues is null)
+                    {
+                        newDict.valuesAsDictionary = dictionary;
+                        newDict.ownsValues = false;
+                        this.ownsValues = false;
+                    }
+                    else
+                    {
+                        newDict.valuesAsDictionary = newValues;
+                        newDict.ownsValues = true;
+                    }
                     return;
                 }
-                // move to immutable version if it's reasonably small. It will be probably cloned multiple times again
+                // move to immutable version if it's small. It will be probably cloned multiple times again
                 SwitchToPerfectHashing();
             }
 
             newDict = this;
             newDict.ownsKeys = false;
-            newDict.ownsValues = false;
+            this.ownsKeys = false;
             for (int i = 0; i < newDict.valuesAsArray.Length; i++)
             {
                 if (CloneValue(newDict.valuesAsArray[i]) is {} newValue)
@@ -438,6 +458,12 @@ namespace DotVVM.Framework.Controls
 
                     newDict.valuesAsArray[i] = newValue;
                 }
+            }
+
+            if (newDict.values == this.values)
+            {
+                this.ownsValues = false;
+                newDict.ownsValues = false;
             }
         }
 
