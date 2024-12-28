@@ -188,12 +188,7 @@ namespace DotVVM.Framework.Compilation.Parser
 		protected bool PeekIsString(string? str)
 		{
 			if (str is null) return false;
-			if (Peek() != str[0]) return false;
-			for (int i = 1; i < str.Length; i++)
-			{
-				if (Peek(i) != str[i]) return false;
-			}
-			return true;
+			return PeekSpan(str.Length).SequenceEqual(str.AsSpan());
 		}
 
 		protected string? ReadOneOf(params string[] strings)
@@ -211,8 +206,6 @@ namespace DotVVM.Framework.Compilation.Parser
 		}
 
 		protected abstract TToken NewToken(string text, TTokenType type, int lineNumber, int columnNumber, int length, int startPosition);
-
-		char[] tokenCharBuffer = new char[20];
 
 		protected string GetCurrentTokenText(int charsFromEndToSkip = 0)
 		{
@@ -301,6 +294,9 @@ namespace DotVVM.Framework.Compilation.Parser
 		{
 			TokenFound?.Invoke(token);
 		}
+
+		protected ReadOnlySpan<char> PeekSpan(int length) =>
+			sourceText.AsSpan(position, Math.Min(length, sourceText.Length - position));
 
 		/// <summary>
 		/// Peeks the current char.

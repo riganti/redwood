@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using DotVVM.Framework.Compilation.Parser;
 using DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer;
+using DotVVM.Framework.Controls;
 
 namespace DotVVM.Framework.Tests.Parser.Dothtml
 {
@@ -28,11 +29,13 @@ namespace DotVVM.Framework.Tests.Parser.Dothtml
                 {
                     test.AppendLine($"Assert.IsTrue(tokens[{i}].HasError)");
                 }
-                test.AppendLine($"Assert.AreEqual(@\"{ token.Text.Replace("\"", "\"\"") }\", tokens[{i}].Text);");
+                test.AppendLine($"Assert.AreEqual({ literal(token.Text) }, tokens[{i}].Text);");
                 test.AppendLine();
                 i++;
             }
             return test.ToString();
+
+            string literal(string a) => KnockoutHelper.MakeStringLiteral(a, htmlSafe: false);
         }
 
         protected void CheckForErrors(DothtmlTokenizer tokenizer, int inputLength)

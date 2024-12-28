@@ -796,5 +796,199 @@ namespace DotVVM.Framework.Tests.Parser.Dothtml
             Assert.AreEqual(DothtmlTokenType.Text, tokenizer.Tokens[i++].Type);
         }
 
+
+        [TestMethod]
+        public void DothtmlTokenizer_ElementParsing_Script()
+        {
+            var input = """
+                <body>
+                <script>
+                    const a = '<a href="#" title="<test>">Test</a>'
+                    const b = 1<4 && 4>1
+                    const c = '</'+'script>'
+                    const d = '<style></style>'
+                </SCRIPT  >
+                <script />
+                </body>
+                """;
+
+            var tokens = Tokenize(input);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[0].Type);
+            Assert.AreEqual("<", tokens[0].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[1].Type);
+            Assert.AreEqual("body", tokens[1].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[2].Type);
+            Assert.AreEqual(">", tokens[2].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[3].Type);
+            Assert.AreEqual("\n", tokens[3].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[4].Type);
+            Assert.AreEqual("<", tokens[4].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[5].Type);
+            Assert.AreEqual("script", tokens[5].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[6].Type);
+            Assert.AreEqual(">", tokens[6].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[7].Type);
+            Assert.AreEqual("\n    const a = '<a href=\"#\" title=\"<test>\">Test</a>'\n    const b = 1<4 && 4>1\n    const c = '</'+'script>'\n    const d = '<style></style>'\n", tokens[7].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[8].Type);
+            Assert.AreEqual("<", tokens[8].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Slash, tokens[9].Type);
+            Assert.AreEqual("/", tokens[9].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[10].Type);
+            Assert.AreEqual("SCRIPT", tokens[10].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.WhiteSpace, tokens[11].Type);
+            Assert.AreEqual("  ", tokens[11].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[12].Type);
+            Assert.AreEqual(">", tokens[12].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[13].Type);
+            Assert.AreEqual("\n", tokens[13].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[14].Type);
+            Assert.AreEqual("<", tokens[14].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[15].Type);
+            Assert.AreEqual("script", tokens[15].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.WhiteSpace, tokens[16].Type);
+            Assert.AreEqual(" ", tokens[16].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Slash, tokens[17].Type);
+            Assert.AreEqual("/", tokens[17].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[18].Type);
+            Assert.AreEqual(">", tokens[18].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[19].Type);
+            Assert.AreEqual("\n", tokens[19].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[20].Type);
+            Assert.AreEqual("<", tokens[20].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Slash, tokens[21].Type);
+            Assert.AreEqual("/", tokens[21].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[22].Type);
+            Assert.AreEqual("body", tokens[22].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[23].Type);
+            Assert.AreEqual(">", tokens[23].Text);
+        }
+
+        [TestMethod]
+        public void DothtmlTokenizer_ElementParsing_HtmlLiteral()
+        {
+            var input = """
+                <body>
+                <dot:HtmlLiteral>
+                    const a = '<a href="#" title="<test>">Test</a>'
+                    const b = 1<4 && 4>1
+                    const c = ''
+                    const d = '</script> </HtmlLiteral> </cc:HtmlLiteral> </dot:HtmlLiteralOrNo>'
+                </doT:htmlliteral  >
+                <script />
+                </body>
+                """;
+
+            var tokens = Tokenize(input);
+
+            // Console.WriteLine(CreateTest(tokens));
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[0].Type);
+            Assert.AreEqual("<", tokens[0].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[1].Type);
+            Assert.AreEqual("body", tokens[1].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[2].Type);
+            Assert.AreEqual(">", tokens[2].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[3].Type);
+            Assert.AreEqual("\n", tokens[3].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[4].Type);
+            Assert.AreEqual("<", tokens[4].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[5].Type);
+            Assert.AreEqual("dot", tokens[5].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Colon, tokens[6].Type);
+            Assert.AreEqual(":", tokens[6].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[7].Type);
+            Assert.AreEqual("HtmlLiteral", tokens[7].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[8].Type);
+            Assert.AreEqual(">", tokens[8].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[9].Type);
+            Assert.AreEqual("\n    const a = '<a href=\"#\" title=\"<test>\">Test</a>'\n    const b = 1<4 && 4>1\n    const c = ''\n    const d = '</script> </HtmlLiteral> </cc:HtmlLiteral> </dot:HtmlLiteralOrNo>'\n", tokens[9].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[10].Type);
+            Assert.AreEqual("<", tokens[10].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Slash, tokens[11].Type);
+            Assert.AreEqual("/", tokens[11].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[12].Type);
+            Assert.AreEqual("doT", tokens[12].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Colon, tokens[13].Type);
+            Assert.AreEqual(":", tokens[13].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[14].Type);
+            Assert.AreEqual("htmlliteral", tokens[14].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.WhiteSpace, tokens[15].Type);
+            Assert.AreEqual("  ", tokens[15].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[16].Type);
+            Assert.AreEqual(">", tokens[16].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[17].Type);
+            Assert.AreEqual("\n", tokens[17].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[18].Type);
+            Assert.AreEqual("<", tokens[18].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[19].Type);
+            Assert.AreEqual("script", tokens[19].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.WhiteSpace, tokens[20].Type);
+            Assert.AreEqual(" ", tokens[20].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Slash, tokens[21].Type);
+            Assert.AreEqual("/", tokens[21].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[22].Type);
+            Assert.AreEqual(">", tokens[22].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[23].Type);
+            Assert.AreEqual("\n", tokens[23].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.OpenTag, tokens[24].Type);
+            Assert.AreEqual("<", tokens[24].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Slash, tokens[25].Type);
+            Assert.AreEqual("/", tokens[25].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.Text, tokens[26].Type);
+            Assert.AreEqual("body", tokens[26].Text);
+            
+            Assert.AreEqual(DothtmlTokenType.CloseTag, tokens[27].Type);
+            Assert.AreEqual(">", tokens[27].Text);
+        }
+        
     }
 }

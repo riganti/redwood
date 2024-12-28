@@ -13,8 +13,11 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
     /// </summary>
     public class DothtmlTokenizer : TokenizerBase<DothtmlToken, DothtmlTokenType>
     {
-        public DothtmlTokenizer() : base(DothtmlTokenType.Text, DothtmlTokenType.WhiteSpace)
+        private readonly DotvvmSyntaxConfiguration config;
+
+        public DothtmlTokenizer(DotvvmSyntaxConfiguration? config = null) : base(DothtmlTokenType.Text, DothtmlTokenType.WhiteSpace)
         {
+            this.config = config ?? DotvvmSyntaxConfiguration.Default;
         }
 
         private static bool IsAllowedAttributeFirstChar(char ch)
@@ -249,12 +252,14 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
             }
 
             // read tag name
-            if (!ReadTagOrAttributeName(isAttributeName: false))
+            if (!ReadTagOrAttributeName(isAttributeName: false, out var tagPrefix, out var tagName))
             {
                 CreateToken(DothtmlTokenType.Text, errorProvider: t => CreateTokenError(t, DothtmlTokenType.OpenTag, DothtmlTokenizerErrors.TagNameExpected));
                 CreateToken(DothtmlTokenType.CloseTag, errorProvider: t => CreateTokenError());
                 return ReadElementType.Error;
             }
+
+            var tagFullName = tagPrefix is null ? tagName ?? "" : tagPrefix + ":" + tagName;
 
             // read tag attributes
             SkipWhitespace();
@@ -291,11 +296,14 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
                 }
             }
 
+            bool isSelfClosing = false;
+
             if (Peek() == '/' && !isClosingTag)
             {
                 // self closing tag
                 Read();
                 CreateToken(DothtmlTokenType.Slash, "/");
+                isSelfClosing = true;
             }
             if (Peek() != '>')
             {
@@ -306,6 +314,14 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
 
             Read();
             CreateToken(DothtmlTokenType.CloseTag, ">");
+
+            if (!isClosingTag && !isSelfClosing && config.IsRawTextElement(tagFullName))
+            {
+                // HTML <script>, <style> tags: read content until we find the closing the, i.e. the `</script` sequence
+                ReadRawTextTag(tagFullName);
+                return ReadElementType.RawTextTag;
+            }
+
             return ReadElementType.ValidTag;
         }
 
@@ -313,11 +329,57 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
         {
             Error,
             ValidTag,
+            RawTextTag,
             CData,
             Comment,
             Doctype,
             XmlProcessingInstruction,
             ServerComment
+        }
+
+        public void ReadRawTextTag(string name)
+        {
+            // Read everything as raw text until the matching end tag
+            // used to parsing <script>, <style>, <dot:InlineScript>, <dot:HtmlLiteral>
+            while (Peek() != NullChar)
+            {
+                if (PeekIsString("</") &&
+                    PeekSpan(name.Length + 2).Slice(2).Equals(name.AsSpan(), StringComparison.OrdinalIgnoreCase) &&
+                    !char.IsLetterOrDigit(Peek(name.Length + 2)))
+                {
+                    CreateToken(DothtmlTokenType.Text);
+                    Debug.Assert(Peek() == '<');
+                    Read();
+                    CreateToken(DothtmlTokenType.OpenTag);
+
+                    Debug.Assert(Peek() == '/');
+                    Read();
+                    CreateToken(DothtmlTokenType.Slash);
+
+                    if (!ReadTagOrAttributeName(isAttributeName: false, out _, out _))
+                    {
+                        CreateToken(DothtmlTokenType.Text, errorProvider: t => CreateTokenError(t, DothtmlTokenType.OpenTag, DothtmlTokenizerErrors.TagNameExpected));
+                    }
+
+                    SkipWhitespace();
+
+                    if (Read() != '>')
+                    {
+                        CreateToken(DothtmlTokenType.CloseTag, errorProvider: t => CreateTokenError(t, DothtmlTokenType.OpenTag, DothtmlTokenizerErrors.TagNotClosed));
+                    }
+                    else
+                    {
+                        CreateToken(DothtmlTokenType.CloseTag);
+                    }
+
+                    return;
+                }
+                Read();
+            }
+
+            // not terminated
+
+            CreateToken(DothtmlTokenType.Text, errorProvider: t => CreateTokenError(t, DothtmlTokenType.OpenTag, DothtmlTokenizerErrors.TagNotClosed));
         }
 
         public ReadElementType ReadHtmlSpecial(bool openBraceConsumed = false)
@@ -437,7 +499,7 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
         /// <summary>
         /// Reads the name of the tag or attribute.
         /// </summary>
-        private bool ReadTagOrAttributeName(bool isAttributeName)
+        private bool ReadTagOrAttributeName(bool isAttributeName, out string? prefix, out string? name)
         {
             var readIdentifierFunc = isAttributeName ? (Func<DothtmlTokenType, char, bool>)ReadAttributeName : (Func<DothtmlTokenType, char, bool>)ReadIdentifier;
 
@@ -446,6 +508,7 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
                 // read the identifier
                 if (!readIdentifierFunc(DothtmlTokenType.Text, ':'))
                 {
+                    prefix = name = null;
                     return false;
                 }
             }
@@ -457,14 +520,23 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
 
             if (Peek() == ':')
             {
+                prefix = Tokens[^1].Text;
+
                 Read();
                 CreateToken(DothtmlTokenType.Colon, ":");
 
                 if (!readIdentifierFunc(DothtmlTokenType.Text, '\0'))
                 {
                     CreateToken(DothtmlTokenType.Text, errorProvider: t => CreateTokenError(t, DothtmlTokenType.OpenTag, DothtmlTokenizerErrors.MissingTagName));
+                    name = null;
                     return true;
                 }
+                name = Tokens[^1].Text;
+            }
+            else
+            {
+                prefix = null;
+                name = Tokens[^1].Text;
             }
 
             SkipWhitespace();
@@ -477,7 +549,7 @@ namespace DotVVM.Framework.Compilation.Parser.Dothtml.Tokenizer
         private bool ReadAttribute()
         {
             // attribute name
-            if (!ReadTagOrAttributeName(isAttributeName: true))
+            if (!ReadTagOrAttributeName(isAttributeName: true, out _, out _))
             {
                 return false;
             }
