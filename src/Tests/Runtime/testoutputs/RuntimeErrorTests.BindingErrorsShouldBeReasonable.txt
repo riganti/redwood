@@ -1,4 +1,4 @@
-BindingPropertyException occurred: Could not initialize binding as it is missing a required property KnockoutExpressionBindingProperty: Could not resolve identifier '_parent.LOL'. Binding: {value: _parent.LOL}. Property path: KnockoutExpressionBindingProperty, KnockoutJsExpressionBindingProperty, CastedExpressionBindingProperty.
+BindingPropertyException occurred: Could not initialize binding '{value: _parent.LOL}' as it is missing a required property KnockoutExpressionBindingProperty: Could not resolve identifier '_parent.LOL'. Binding: {value: _parent.LOL}. Property path: KnockoutExpressionBindingProperty, KnockoutJsExpressionBindingProperty, CastedExpressionBindingProperty.
     at void DotVVM.Framework.Tests.Runtime.RuntimeErrorTests.BindingErrorsShouldBeReasonable()+() => { }
 
 BindingCompilationException occurred: Could not resolve identifier '_parent.LOL'.

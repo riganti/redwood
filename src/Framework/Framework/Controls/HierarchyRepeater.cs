@@ -7,8 +7,10 @@ using System.Linq;
 using DotVVM.Framework.Binding;
 using DotVVM.Framework.Binding.Expressions;
 using DotVVM.Framework.Binding.Properties;
+using DotVVM.Framework.Compilation.ControlTree.Resolved;
 using DotVVM.Framework.Compilation.Javascript;
 using DotVVM.Framework.Compilation.Javascript.Ast;
+using DotVVM.Framework.Compilation.Validation;
 using DotVVM.Framework.Controls;
 using DotVVM.Framework.Hosting;
 using DotVVM.Framework.ResourceManagement;
@@ -40,14 +42,14 @@ namespace DotVVM.Framework.Controls
         [ControlPropertyBindingDataContextChange(nameof(DataSource))]
         [BindingCompilationRequirements(new[] { typeof(DataSourceAccessBinding) }, new[] { typeof(DataSourceLengthBinding) })]
         [MarkupOptions(Required = true)]
-        public IValueBinding<IEnumerable<object>>? ItemChildrenBinding
+        public IStaticValueBinding<IEnumerable<object>>? ItemChildrenBinding
         {
-            get => (IValueBinding<IEnumerable<object>>?)GetValue(ItemChildrenBindingProperty);
+            get => (IStaticValueBinding<IEnumerable<object>>?)GetValue(ItemChildrenBindingProperty);
             set => SetValue(ItemChildrenBindingProperty, value);
         }
 
         public static readonly DotvvmProperty ItemChildrenBindingProperty
-            = DotvvmProperty.Register<IValueBinding<IEnumerable<object>>?, HierarchyRepeater>(t => t.ItemChildrenBinding);
+            = DotvvmProperty.Register<IStaticValueBinding<IEnumerable<object>>?, HierarchyRepeater>(t => t.ItemChildrenBinding);
 
         /// <summary>
         /// Gets or sets the template for each HierarchyRepeater item.
@@ -148,7 +150,7 @@ namespace DotVVM.Framework.Controls
 
         protected override void RenderContents(IHtmlWriter writer, IDotvvmRequestContext context)
         {
-            if (RenderOnServer)
+            if (clientRootLevel is null)
             {
                 foreach (var child in Children.Except(new[] { emptyDataContainer!, clientItemTemplate! }))
                 {
@@ -157,7 +159,7 @@ namespace DotVVM.Framework.Controls
             }
             else
             {
-                clientRootLevel!.Render(writer, context);
+                clientRootLevel.Render(writer, context);
             }
         }
 
@@ -167,12 +169,17 @@ namespace DotVVM.Framework.Controls
             emptyDataContainer = null;
             clientItemTemplate = null;
 
-            if (DataSource is not null)
+            if (GetIEnumerableFromDataSource() is {} enumerable)
             {
-                CreateServerLevel(this.Children, context, GetIEnumerableFromDataSource()!);
+                CreateServerLevel(this.Children,
+                    context,
+                    enumerable,
+                    parentPath: ImmutableArray<int>.Empty,
+                    foreachExpression: this.TryGetKnockoutForeachExpression()
+                );
             }
 
-            if (renderClientTemplate)
+            if (renderClientTemplate && GetDataSourceBinding() is IValueBinding)
             {
                 // whenever possible, we use the dotvvm deterministic ids, but if we are in a client-side template,
                 // we'd get a binding... so we just generate a random Guid, not ideal but it will work.
@@ -186,7 +193,7 @@ namespace DotVVM.Framework.Controls
                 Children.Add(clientRootLevel);
                 clientRootLevel.Children.Add(new HierarchyRepeaterLevel {
                     IsRoot = true,
-                    ForeachExpression = GetForeachDataBindExpression().GetKnockoutBindingExpression(this),
+                    ForeachExpression = this.TryGetKnockoutForeachExpression().NotNull(),
                     ItemTemplateId = clientItemTemplateId,
                 });
             }
@@ -201,19 +208,9 @@ namespace DotVVM.Framework.Controls
             IList<DotvvmControl> c,
             IDotvvmRequestContext context,
             IEnumerable items,
-            ImmutableArray<int> parentPath = default,
-            string? foreachExpression = default)
+            ImmutableArray<int> parentPath,
+            string? foreachExpression)
         {
-            if (parentPath.IsDefault)
-            {
-                parentPath = ImmutableArray<int>.Empty;
-            }
-
-            foreachExpression ??= ((IValueBinding)GetDataSourceBinding()
-                .GetProperty<DataSourceAccessBinding>()
-                .Binding)
-                .GetKnockoutBindingExpression(this);
-
             var dataContextLevelWrapper = new HierarchyRepeaterLevel {
                 ForeachExpression = foreachExpression
             };
@@ -229,7 +226,7 @@ namespace DotVVM.Framework.Controls
             var index = 0;
             foreach (var item in items)
             {
-                CreateServerItem(levelWrapper.Children, context, item, parentPath, index);
+                CreateServerItem(levelWrapper.Children, context, item, parentPath, index, foreachExpression is null);
                 index++;
             }
             return dataContextLevelWrapper;
@@ -240,14 +237,16 @@ namespace DotVVM.Framework.Controls
             IDotvvmRequestContext context,
             object item,
             ImmutableArray<int> parentPath,
-            int index)
+            int index,
+            bool serverOnly)
         {
             var itemWrapper = ItemWrapperCapability.GetWrapper();
             c.Add(itemWrapper);
-            var dataItem = new DataItemContainer { DataItemIndex = index };
+            var dataItem = new DataItemContainer { DataItemIndex = index, RenderItemBinding = !serverOnly };
             dataItem.SetValue(Internal.UniqueIDProperty, index.ToString() + "L"); // must be different from sibling HierarchyRepeaterLevel
-            itemWrapper.Children.Add(dataItem);
             dataItem.SetDataContextTypeFromDataSource(GetDataSourceBinding());
+            dataItem.SetValue(Internal.IsServerOnlyDataContextProperty, serverOnly);
+            itemWrapper.Children.Add(dataItem);
             // NB: the placeholder is needed because during data context resolution DataItemContainers are looked up
             //     only among parents
             var placeholder = new PlaceHolder { DataContext = item };
@@ -259,6 +258,7 @@ namespace DotVVM.Framework.Controls
                 $"{GetPathFragmentExpression()}{parentSegment}/[{index}]");
             placeholder.SetValue(Internal.UniqueIDProperty, "item");
             placeholder.SetDataContextTypeFromDataSource(GetDataSourceBinding()); // DataContext type has to be duplicated on the placeholder, because BindingHelper.FindDataContextTarget (in v4.1)
+            placeholder.SetValue(Internal.IsServerOnlyDataContextProperty, serverOnly);
             dataItem.Children.Add(placeholder);
             ItemTemplate.BuildContent(context, placeholder);
 
@@ -266,7 +266,8 @@ namespace DotVVM.Framework.Controls
             var itemChildren = GetItemChildren(item);
             if (itemChildren.Any())
             {
-                var foreachExpression = ((IValueBinding)ItemChildrenBinding!
+                var foreachExpression = serverOnly ? null : ((IValueBinding)ItemChildrenBinding
+                    .NotNull("ItemChildrenBinding property is required")
                     .GetProperty<DataSourceAccessBinding>()
                     .Binding)
                     .GetParametrizedKnockoutExpression(dataItem)
@@ -363,6 +364,36 @@ namespace DotVVM.Framework.Controls
             tempContainer.SetDataContextTypeFromDataSource(GetDataSourceBinding());
             return ItemChildrenBinding!.Evaluate(tempContainer) ?? Enumerable.Empty<object>();
         }
+
+        [ControlUsageValidator]
+        public static IEnumerable<ControlUsageError> ValidateUsage(ResolvedControl control)
+        {
+            if (!control.TryGetProperty(DataSourceProperty, out var dataSource))
+            {
+                yield return new("DataSource is required on HierarchyRepeater");
+                yield break;
+            }
+            if (dataSource is not ResolvedPropertyBinding { Binding: var dataSourceBinding })
+            {
+                yield return new("HierarchyRepeater.DataSource must be a binding");
+                yield break;
+            }
+            if (!control.TryGetProperty(ItemChildrenBindingProperty, out var itemChildren) ||
+                itemChildren is not ResolvedPropertyBinding { Binding: var itemChildrenBinding })
+            {
+                yield break;
+            }
+
+            if (dataSourceBinding.ParserOptions.BindingType != itemChildrenBinding.ParserOptions.BindingType)
+            {
+                yield return new(
+                    "HierarchyRepeater.DataSource and HierarchyRepeater.ItemChildrenBinding must have the same binding type, use `value` or `resource` binding for both properties.",
+                    dataSourceBinding.DothtmlNode,
+                    itemChildrenBinding.DothtmlNode
+                );
+            }
+        }
+
 
         /// <summary>
         /// An internal control for a level of the <see cref="HierarchyRepeater"/> that renders

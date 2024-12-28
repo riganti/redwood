@@ -35,6 +35,10 @@ namespace DotVVM.Framework.Controls
         public static readonly DotvvmProperty PathFragmentProperty =
             DotvvmProperty.Register<string?, Internal>(() => PathFragmentProperty);
 
+        /// <summary> Assume that the DataContext is a resource binding, and level won't be present client-side </summary>
+        public static readonly DotvvmProperty IsServerOnlyDataContextProperty =
+            DotvvmProperty.Register<bool, Internal>(() => IsServerOnlyDataContextProperty, defaultValue: false, isValueInherited: false);
+
         /// <summary>
         /// Gets compile-time DataContextStack
         /// </summary>

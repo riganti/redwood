@@ -1,0 +1,15 @@
+<html>
+	<head></head>
+	<body>
+		<span class="name" data-id="1">One</span>
+		<div data-bind="foreach: { data: FewStrings }">
+			<!-- ko text: ($parent.StringPrefix() ?? "") + $data -->
+			<!-- /ko -->
+		</div>
+		<span class="name" data-id="2">Two</span>
+		<div data-bind="foreach: { data: FewStrings }">
+			<!-- ko text: ($parent.StringPrefix() ?? "") + $data -->
+			<!-- /ko -->
+		</div>
+	</body>
+</html>

@@ -87,6 +87,7 @@ namespace DotVVM.Testing.Abstractions
         public const string ControlSamples_GridView_GridViewInlineEditingPrimaryKeyString = "ControlSamples/GridView/GridViewInlineEditingPrimaryKeyString";
         public const string ControlSamples_GridView_GridViewInlineEditingValidation = "ControlSamples/GridView/GridViewInlineEditingValidation";
         public const string ControlSamples_GridView_GridViewPagingSorting = "ControlSamples/GridView/GridViewPagingSorting";
+        public const string ControlSamples_GridView_GridViewPagingSortingServerSide = "ControlSamples/GridView/GridViewPagingSortingServerSide";
         public const string ControlSamples_GridView_GridViewRowDecorators = "ControlSamples/GridView/GridViewRowDecorators";
         public const string ControlSamples_GridView_GridViewServerRender = "ControlSamples/GridView/GridViewServerRender";
         public const string ControlSamples_GridView_GridViewSortChanged = "ControlSamples/GridView/GridViewSortChanged";

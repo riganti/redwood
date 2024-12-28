@@ -14,5 +14,7 @@ namespace DotVVM.Framework.Compilation.ControlTree
         ImmutableArray<BindingExtensionParameter> ExtensionParameters { get; }
         IEnumerable<(int dataContextLevel, BindingExtensionParameter parameter)> GetCurrentExtensionParameters();
 
+        bool ServerSideOnly { get; }
+
     }
 }

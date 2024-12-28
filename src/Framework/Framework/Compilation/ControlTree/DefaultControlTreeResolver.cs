@@ -41,13 +41,15 @@ namespace DotVVM.Framework.Compilation.ControlTree
             return new ControlType(ResolvedTypeDescriptor.ToSystemType(wrapperType), virtualPath: virtualPath);
         }
 
-        protected override IDataContextStack CreateDataContextTypeStack(ITypeDescriptor? viewModelType, IDataContextStack? parentDataContextStack = null, IReadOnlyList<NamespaceImport>? namespaceImports = null, IReadOnlyList<BindingExtensionParameter>? extensionParameters = null)
+        protected override IDataContextStack CreateDataContextTypeStack(ITypeDescriptor? viewModelType, IDataContextStack? parentDataContextStack = null, IReadOnlyList<NamespaceImport>? namespaceImports = null, IReadOnlyList<BindingExtensionParameter>? extensionParameters = null, bool serverSideOnly = false)
         {
 
             return DataContextStack.Create(
                 ResolvedTypeDescriptor.ToSystemType(viewModelType) ?? typeof(UnknownTypeSentinel),
                 parentDataContextStack as DataContextStack,
-                namespaceImports, extensionParameters);
+                namespaceImports,
+                extensionParameters,
+                serverSideOnly: serverSideOnly);
         }
 
         protected override IAbstractBinding CompileBinding(DothtmlBindingNode node, BindingParserOptions bindingOptions, IDataContextStack context, IPropertyDescriptor property)

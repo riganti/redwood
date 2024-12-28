@@ -27,7 +27,6 @@ namespace DotVVM.Framework.Tests.Binding
 
         static readonly BindingTestHelper bindingHelper = new BindingTestHelper(defaultExtensionParameters: new BindingExtensionParameter[] {
             new CurrentCollectionIndexExtensionParameter(),
-            new CurrentCollectionIndexExtensionParameter(),
             new BindingPageInfoExtensionParameter(),
             new InjectedServiceExtensionParameter("s", new ResolvedTypeDescriptor(typeof(ValidatedService)))
         });

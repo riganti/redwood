@@ -56,16 +56,17 @@ namespace DotVVM.Framework.Controls
             set { this.index = value; SetValue(Internal.UniqueIDProperty, value?.ToString()); }
         }
 
+        public bool RenderItemBinding { get; set; } = true;
 
         protected override void RenderControl(IHtmlWriter writer, IDotvvmRequestContext context)
         {
             var maybeIndex = DataItemIndex;
-            if (maybeIndex is int index)
+            if (RenderItemBinding && maybeIndex is int index)
                 writer.WriteKnockoutDataBindComment("dotvvm-SSR-item", index.ToString());
 
             base.RenderControl(writer, context);
 
-            if (maybeIndex is int)
+            if (RenderItemBinding && maybeIndex is int)
                 writer.WriteKnockoutDataBindEndComment();
         }
     }

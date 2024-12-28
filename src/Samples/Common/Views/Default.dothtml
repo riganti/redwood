@@ -2,8 +2,8 @@
 @masterPage Views/Samples.dotmaster
 
 <dot:Content ContentPlaceHolderID="Main">
-    <dot:Repeater WrapperTagName="ul" DataSource={value: Routes }>
-        <li><a href={value: Url}>{{value: RouteName}}</a></li>
+    <dot:Repeater WrapperTagName="ul" DataSource={resource: Routes }>
+        <li><a href={resource: Url}>{{resource: RouteName}}</a></li>
     </dot:Repeater>
-    <div>Number of Tests: {{value: Routes.Count}}</div>
+    <div>Number of Tests: {{resource: Routes.Count}}</div>
 </dot:Content>

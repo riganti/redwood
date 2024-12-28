@@ -30,7 +30,7 @@ namespace DotVVM.Framework.Controls
         }
 
         public static readonly DotvvmProperty CheckedProperty =
-            DotvvmProperty.Register<bool?, CheckBox>(t => t.Checked, false);
+            DotvvmProperty.Register<bool?, CheckBox>(t => t.Checked, null);
 
         /// <summary>
         /// Gets or sets a collection of values of all checked checkboxes. Use this property in combination with the CheckedValue property.
@@ -60,12 +60,14 @@ namespace DotVVM.Framework.Controls
         /// </summary>
         protected override void RenderInputTag(IHtmlWriter writer)
         {
-            if (HasValueBinding(CheckedProperty) && !HasValueBinding(CheckedItemsProperty))
+            var checkedValue = GetValueRaw(CheckedProperty);
+            var checkedItemsValue = GetValueRaw(CheckedItemsProperty);
+            if (checkedValue is {} && checkedItemsValue is null)
             {
                 // boolean mode
-                RenderCheckedProperty(writer);
+                RenderCheckedProperty(writer, checkedValue);
             }
-            else if (!HasValueBinding(CheckedProperty) && HasValueBinding(CheckedItemsProperty))
+            else if (checkedValue is null && checkedItemsValue is {})
             {
                 // collection mode
                 RenderCheckedItemsProperty(writer);
@@ -121,18 +123,26 @@ namespace DotVVM.Framework.Controls
             writer.AddKnockoutDataBind("dotvvm-checkedItems", checkedItemsBinding!.GetKnockoutBindingExpression(this));
         }
 
-        protected virtual void RenderCheckedProperty(IHtmlWriter writer)
+        protected virtual void RenderCheckedProperty(IHtmlWriter writer, object? checkedValue)
         {
-            var checkedBinding = GetValueBinding(CheckedProperty);
+            if (checkedValue is IValueBinding checkedBinding)
+            {
+                // dotvvm-CheckState sets elements to indeterminate state when checkedBinding is null,
+                // knockout's default checked binding does not do that
+                var bindingHandler = DisableIndeterminate ? "checked" : "dotvvm-CheckState";
+                writer.AddKnockoutDataBind(bindingHandler, checkedBinding!, this);
 
-            // dotvvm-CheckState sets elements to indeterminate state when checkedBinding is null,
-            // knockout's default checked binding does not do that
-            var bindingHandler = DisableIndeterminate ? "checked" : "dotvvm-CheckState";
-            writer.AddKnockoutDataBind(bindingHandler, checkedBinding!, this);
-
-            // Boolean mode can have prerendered `checked` attribute
-            if (RenderOnServer && true.Equals(GetValue(CheckedProperty)))
-                writer.AddAttribute("checked", null);
+                // Boolean mode can have prerendered `checked` attribute
+                if (RenderOnServer && KnockoutHelper.TryEvaluateValueBinding(this, checkedBinding) is true)
+                    writer.AddAttribute("checked", null);
+            }
+            else
+            {
+                if ((bool?)EvalPropertyValue(CheckedProperty, checkedValue) is true)
+                {
+                    writer.AddAttribute("checked", null);
+                }
+            }
         }
 
 

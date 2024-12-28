@@ -56,7 +56,8 @@ namespace DotVVM.Framework.Binding
                 new ValueBindingExpression<TResult>(compilationService, new object?[] {
                     dataContext,
                     new OriginalStringBindingProperty(code),
-                    parserOptions
+                    parserOptions,
+                    new ExpectedTypeBindingProperty(typeof(TResult))
                 }));
         }
 
@@ -78,7 +79,8 @@ namespace DotVVM.Framework.Binding
                 new ResourceBindingExpression<TResult>(compilationService, new object?[] {
                     dataContext,
                     new OriginalStringBindingProperty(code),
-                    parserOptions
+                    parserOptions,
+                    new ExpectedTypeBindingProperty(typeof(TResult))
                 }));
         }
 
@@ -100,7 +102,8 @@ namespace DotVVM.Framework.Binding
                 new CommandBindingExpression<TResult>(compilationService, new object?[] {
                     dataContext,
                     new OriginalStringBindingProperty(code),
-                    parserOptions
+                    parserOptions,
+                    new ExpectedTypeBindingProperty(typeof(TResult))
                 }));
         }
 
@@ -122,7 +125,8 @@ namespace DotVVM.Framework.Binding
                 new StaticCommandBindingExpression<TResult>(compilationService, new object?[] {
                     dataContext,
                     new OriginalStringBindingProperty(code),
-                    parserOptions
+                    parserOptions,
+                    new ExpectedTypeBindingProperty(typeof(TResult))
                 }));
         }
 

@@ -69,6 +69,9 @@ namespace DotVVM.Framework.Controls
             IValueBinding? value,
             ValidatorPlacement placement)
         {
+            if (value is null)
+                return;
+
             if (placement.HasFlag(ValidatorPlacement.AttachToControl)) {
                 control.SetValue(ValueProperty, value!);
             }

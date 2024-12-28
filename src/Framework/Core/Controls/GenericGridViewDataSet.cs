@@ -29,7 +29,7 @@ namespace DotVVM.Framework.Controls
         /// <summary>
         /// Gets or sets the items for the current page.
         /// </summary>
-        public IList<T> Items { get; set; } = new List<T>();
+        public virtual IList<T> Items { get; set; } = new List<T>();
 
         /// <summary>
         /// Gets or sets whether the data should be refreshed. This property is set to true automatically

@@ -59,7 +59,6 @@ namespace DotVVM.Framework.Tests.Binding
         {
             var extensionParams = new BindingExtensionParameter[] {
                 new CurrentCollectionIndexExtensionParameter(),
-                new CurrentCollectionIndexExtensionParameter(),
                 new BindingPageInfoExtensionParameter(),
                 new InjectedServiceExtensionParameter("injectedService", new ResolvedTypeDescriptor(typeof(TestService)))
             };

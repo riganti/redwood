@@ -503,7 +503,13 @@ namespace DotVVM.Framework.ViewModel.Serialization
                 var target = view.FindControlByUniqueId(controlUniqueId);
                 if (target == null)
                 {
-                    throw new Exception(string.Format("The control with ID '{0}' was not found!", controlUniqueId));
+                    var markupControls =
+                        view.GetAllDescendants()
+                            .OfType<DotvvmMarkupControl>()
+                            .Where(c => c.GetAllDescendants(cc => cc is not DotvvmMarkupControl)
+                                         .Any(cc => cc.Properties.Values
+                                                      .Any(value => value is Binding.Expressions.CommandBindingExpression cb && cb.BindingId == command)));
+                    throw new Exception($"The control with ID '{controlUniqueId}' was not found! Existing markup controls with this command are: {string.Join(", ", markupControls.Select(c => c.GetDotvvmUniqueId().ToString()).OrderBy(s => s, StringComparer.Ordinal))}");
                 }
                 return commandResolver.GetFunction(target, view, context, path!, command, args);
             }

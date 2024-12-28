@@ -42,7 +42,7 @@ namespace DotVVM.AutoUI.PropertyHandlers.FormEditors
                 .SetCapability(props.Html)
                 .SetProperty(c => c.Enabled, props.Enabled)
                 .SetProperty(c => c.SelectionChanged, props.Changed)
-                .SetProperty(c => c.SelectedValue, (IValueBinding)context.CreateValueBinding(property));
+                .SetProperty(c => c.SelectedValue, props.Property);
 
             if (isNullable)
             {

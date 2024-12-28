@@ -388,9 +388,11 @@ namespace DotVVM.Framework.Controls
 
         public object? this[DotvvmProperty key] { get => control.properties.GetOrThrow(key); set => control.properties.Set(key, value); }
 
-        public ICollection<DotvvmProperty> Keys => throw new NotImplementedException();
+        public KeysCollection Keys => new KeysCollection(control);
+        ICollection<DotvvmProperty> IDictionary<DotvvmProperty, object?>.Keys => Keys;
 
-        public ICollection<object?> Values => throw new NotImplementedException();
+        public ValuesCollection Values => new ValuesCollection(control);
+        ICollection<object?> IDictionary<DotvvmProperty, object?>.Values => Values;
 
         public int Count => control.properties.Count();
         public bool IsReadOnly => false;
@@ -442,5 +444,72 @@ namespace DotVVM.Framework.Controls
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
         IEnumerator<KeyValuePair<DotvvmProperty, object?>> IEnumerable<KeyValuePair<DotvvmProperty, object?>>.GetEnumerator() => this.GetEnumerator();
+
+
+        public readonly struct KeysCollection : ICollection<DotvvmProperty>, IReadOnlyCollection<DotvvmProperty>
+        {
+            private readonly DotvvmBindableObject control;
+
+            public KeysCollection(DotvvmBindableObject control) { this.control = control; }
+            public int Count => control.properties.Count();
+
+            public bool IsReadOnly => true;
+            public void Add(DotvvmProperty item) => throw new NotSupportedException("Adding a property without value doesn't make sense");
+            public void Clear() => throw new NotSupportedException("Explicitly use control.Properties.Clear() instead.");
+            public bool Contains(DotvvmProperty item) => control.properties.Contains(item);
+            public void CopyTo(DotvvmProperty[] array, int arrayIndex)
+            {
+                foreach (var x in control.properties)
+                {
+                    array[arrayIndex++] = x.Key;
+                }
+            }
+            public IEnumerator<DotvvmProperty> GetEnumerator()
+            {
+                foreach (var x in control.properties)
+                {
+                    yield return x.Key;
+                }
+            }
+            public bool Remove(DotvvmProperty item) => throw new NotSupportedException("Explicitly use control.Properties.Remove() instead.");
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+
+        public struct ValuesCollection : ICollection<object?>
+        {
+            private readonly DotvvmBindableObject control;
+
+            public ValuesCollection(DotvvmBindableObject control) { this.control = control; }
+            public int Count => control.properties.Count();
+
+            public bool IsReadOnly => true;
+            public void Add(object? item) => throw new NotSupportedException("Adding a value without property doesn't make sense");
+            public void Clear() => throw new NotSupportedException("Explicitly use control.Properties.Clear() instead.");
+            public bool Contains(object? item)
+            {
+                foreach (var x in control.properties)
+                {
+                    if (Object.Equals(x.Value, item))
+                        return true;
+                }
+                return false;
+            }
+            public void CopyTo(object?[] array, int arrayIndex)
+            {
+                foreach (var x in control.properties)
+                {
+                    array[arrayIndex++] = x.Value;
+                }
+            }
+            public IEnumerator<object?> GetEnumerator()
+            {
+                foreach (var x in control.properties)
+                {
+                    yield return x.Value;
+                }
+            }
+            public bool Remove(object? item) => throw new NotSupportedException("Explicitly use control.Properties.Remove() instead.");
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
     }
 }

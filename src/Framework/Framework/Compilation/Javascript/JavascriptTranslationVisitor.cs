@@ -14,6 +14,7 @@ using DotVVM.Framework.Controls;
 using DotVVM.Framework.Utils;
 using DotVVM.Framework.ViewModel;
 using DotVVM.Framework.ViewModel.Serialization;
+using FastExpressionCompiler;
 
 namespace DotVVM.Framework.Compilation.Javascript
 {
@@ -27,7 +28,12 @@ namespace DotVVM.Framework.Compilation.Javascript
         public bool WriteUnknownParameters { get; set; } = true;
         public JavascriptTranslationVisitor(DataContextStack dataContext, IJavascriptMethodTranslator translator)
         {
-            this.ContextMap = dataContext.EnumerableItems().Select((a, i) => (a, i)).ToDictionary(a => a.Item1, a => a.Item2);
+            this.ContextMap =
+                dataContext
+                .EnumerableItems()
+                .Where(c => !c.ServerSideOnly) // server-side only data contexts are not present at all client-side, so we need to skip them before assigning indices
+                .Select((a, i) => (a, i))
+                .ToDictionary(a => a.a, a => a.i);
             this.DataContext = dataContext;
             this.Translator = translator;
         }
@@ -196,6 +202,9 @@ namespace DotVVM.Framework.Compilation.Javascript
 
         public JsExpression TranslateParameter(Expression expression, BindingParameterAnnotation annotation)
         {
+            if (annotation.DataContext is { ServerSideOnly: true })
+                throw new NotSupportedException($"{expression} of type {annotation.DataContext.DataContextType.ToCode(stripNamespace: true)} cannot be translated to JavaScript, it can only be used in resource and command bindings. This is most likely because the data context is bound to a resource binding.");
+
             JsExpression getDataContext(int parentContexts)
             {
                 JsExpression context = new JsSymbolicParameter(JavascriptTranslator.KnockoutContextParameter);
