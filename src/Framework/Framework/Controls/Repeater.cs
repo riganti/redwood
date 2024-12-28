@@ -355,6 +355,7 @@ namespace DotVVM.Framework.Controls
             container.DataItemIndex = index;
             container.DataContext = item;
             container.RenderItemBinding = !serverOnly;
+            container.SetValue(Internal.IsServerOnlyDataContextProperty, serverOnly);
             container.SetValue(Internal.PathFragmentProperty, GetPathFragmentExpression() + "/[" + index + "]");
             container.ID = index.ToString();
         }

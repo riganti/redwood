@@ -88,49 +88,31 @@ namespace DotVVM.Framework.Binding
             if (bindingContext == null || controlContext == null || controlContext.Equals(bindingContext)) return (0, control);
 
             var changes = 0;
-            var lastAncestorContext = controlContext;
             foreach (var a in control.GetAllAncestors(includingThis: true))
             {
                 var ancestorContext = a.GetDataContextType(inherit: false);
-
-                if (ancestorContext is null)
-                    continue;
-
-                if (!ancestorContext.ServerSideOnly &&
-                    !ancestorContext.Equals(lastAncestorContext))
-                {
-                    // only count changes which are visible client-side
-                    // server-side context are not present in the client-side stack at all, so we need to skip them here
-
-                    // don't count changes which only extend the data context, but don't nest it
-
-                    var isNesting = ancestorContext.IsAncestorOf(lastAncestorContext);
-                    if (isNesting)
-                    {
-                        changes++;
-                    }
-#if DEBUG
-                    else if (!lastAncestorContext.DataContextType.IsAssignableFrom(ancestorContext.DataContextType))
-                    {
-                        // this should not happen - data context type should not randomly change without nesting.
-                        // we change data context stack when we get into different compilation context - a markup control
-                        // but that will be always the same viewmodel type (or supertype)
-
-                        var previousAncestor = control.GetAllAncestors(includingThis: true).TakeWhile(aa => aa != a).LastOrDefault();
-                        var config = (control.GetValue(Internal.RequestContextProperty) as Hosting.IDotvvmRequestContext)?.Configuration;
-                        throw new DotvvmControlException(
-                            previousAncestor ?? a,
-                            $"DataContext type changed from '{lastAncestorContext.DataContextType.ToCode()}' to '{ancestorContext.DataContextType.ToCode()}' without nesting. " +
-                            $"{previousAncestor?.DebugString(config)} has DataContext: {lastAncestorContext}, " +
-                            $"{a.DebugString(config)} has DataContext: {ancestorContext}");
-                    }
-#endif
-                    lastAncestorContext = ancestorContext;
-                }
-
                 if (bindingContext.Equals(ancestorContext))
                     return (changes, a);
 
+                // count only client-side data contexts (DataContext={resource:} is skipped in JS)
+                if (a.properties.TryGet(DotvvmBindableObject.DataContextProperty, out var ancestorRuntimeContext))
+                {
+                    if (a.properties.TryGet(Internal.IsServerOnlyDataContextProperty, out var isServerOnly) && isServerOnly != null)
+                    {
+                        if (isServerOnly is false)
+                            changes++;
+                    }
+                    else
+                    {
+                        // we only count bindings which are not value bindings as client-side
+                        // scalar values (null or otherwise) are used by Repeater to the collection elements
+                        // (since this logic got inlined into many other ItemsControls and is painful to debug, let's not change it)
+                        if (ancestorRuntimeContext is null ||
+                            ancestorRuntimeContext is IValueBinding ||
+                            ancestorRuntimeContext is not IBinding)
+                            changes++;
+                    }
+                }
             }
 
             // try to get the real objects, to see which is wrong

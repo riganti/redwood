@@ -216,6 +216,7 @@ namespace DotVVM.Framework.Controls
                     var placeholder = new DataItemContainer { DataItemIndex = index, RenderItemBinding = !serverOnly };
                     placeholder.SetDataContextTypeFromDataSource(dataSourceBinding);
                     placeholder.DataContext = item;
+                    placeholder.SetValue(Internal.IsServerOnlyDataContextProperty, serverOnly);
                     placeholder.SetValue(Internal.PathFragmentProperty, GetPathFragmentExpression() + "/[" + index + "]");
                     placeholder.ID = index.ToString();
                     Children.Add(placeholder);

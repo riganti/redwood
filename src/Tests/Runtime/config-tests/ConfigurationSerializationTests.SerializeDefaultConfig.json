@@ -1119,6 +1119,10 @@
         "type": "System.Boolean",
         "defaultValue": false
       },
+      "IsServerOnlyDataContext": {
+        "type": "System.Boolean",
+        "defaultValue": false
+      },
       "IsSpaPage": {
         "type": "System.Boolean",
         "isValueInherited": true,

@@ -244,8 +244,9 @@ namespace DotVVM.Framework.Controls
             c.Add(itemWrapper);
             var dataItem = new DataItemContainer { DataItemIndex = index, RenderItemBinding = !serverOnly };
             dataItem.SetValue(Internal.UniqueIDProperty, index.ToString() + "L"); // must be different from sibling HierarchyRepeaterLevel
-            itemWrapper.Children.Add(dataItem);
             dataItem.SetDataContextTypeFromDataSource(GetDataSourceBinding());
+            dataItem.SetValue(Internal.IsServerOnlyDataContextProperty, serverOnly);
+            itemWrapper.Children.Add(dataItem);
             // NB: the placeholder is needed because during data context resolution DataItemContainers are looked up
             //     only among parents
             var placeholder = new PlaceHolder { DataContext = item };
@@ -257,6 +258,7 @@ namespace DotVVM.Framework.Controls
                 $"{GetPathFragmentExpression()}{parentSegment}/[{index}]");
             placeholder.SetValue(Internal.UniqueIDProperty, "item");
             placeholder.SetDataContextTypeFromDataSource(GetDataSourceBinding()); // DataContext type has to be duplicated on the placeholder, because BindingHelper.FindDataContextTarget (in v4.1)
+            placeholder.SetValue(Internal.IsServerOnlyDataContextProperty, serverOnly);
             dataItem.Children.Add(placeholder);
             ItemTemplate.BuildContent(context, placeholder);
 
