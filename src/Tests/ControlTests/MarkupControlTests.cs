@@ -142,7 +142,9 @@ namespace DotVVM.Framework.Tests.ControlTests
                 ));
             
             StringAssert.Contains(exception.Message, "cannot be used in resource-binding only data context, because it uses value bindings on the data context.");
-            Assert.AreEqual("/tmp/MarkupControl_ValueInResource_Error.dothtml", exception.FileName);
+
+            // is dothtml (not dotcontrol), otherwise it's impossible to find where is it being a problem
+            StringAssert.EndsWith("MarkupControl_ValueInResource_Error.dothtml", exception.FileName);
         }
 
         [TestMethod]
