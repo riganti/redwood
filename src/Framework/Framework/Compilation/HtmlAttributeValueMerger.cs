@@ -22,10 +22,12 @@ namespace DotVVM.Framework.Compilation
             // return Expression.Call(typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string), typeof(string) }), a, Expression.Constant(separator), b);
         }
 
-        public static string? MergeValues(GroupedDotvvmProperty property, string? a, string? b)
+        public static string? MergeValues(DotvvmPropertyId property, string? a, string? b)
         {
+            if (!property.IsPropertyGroup) throw new ArgumentException("HtmlAttributeValueMerger only supports property group", nameof(property));
+            var attributeName = property.GroupMemberName;
             // for perf reasons only do this compile time - we'll deduplicate the attribute if it's a CSS class
-            if (property.GroupMemberName == "class" && a is string && b is string)
+            if (attributeName == "class" && a is string && b is string)
             {
                 var classesA = a.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
                 var classesB = b.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
@@ -33,18 +35,19 @@ namespace DotVVM.Framework.Compilation
                 b = string.Join(" ", classesB);
             }
 
-            return HtmlWriter.JoinAttributeValues(property.GroupMemberName, a, b);
+            return HtmlWriter.JoinAttributeValues(attributeName, a, b);
         }
 
 
-        public override object? MergePlainValues(DotvvmProperty prop, object? a, object? b)
+        public override object? MergePlainValues(DotvvmPropertyId prop, object? a, object? b)
         {
-            var gProp = (GroupedDotvvmProperty)prop;
+            if (!prop.IsPropertyGroup) throw new ArgumentException("HtmlAttributeValueMerger only supports property group", nameof(prop));
+            var attributeName = prop.GroupMemberName;
             if (a is null) return b;
             if (b is null) return a;
 
             if (a is string aString && b is string bString)
-                return HtmlWriter.JoinAttributeValues(gProp.GroupMemberName, aString, bString);
+                return HtmlWriter.JoinAttributeValues(attributeName, aString, bString);
 
             // append to list. Order does not matter in html attributes
             if (a is HtmlGenericControl.AttributeList alist)

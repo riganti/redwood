@@ -181,25 +181,25 @@ namespace DotVVM.Framework.Controls
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected bool TouchProperty(DotvvmProperty prop, object? value, ref RenderState r)
+        protected bool TouchProperty(DotvvmPropertyId prop, object? value, ref RenderState r)
         {
-            if (prop == VisibleProperty)
+            if (prop == VisibleProperty.Id)
                 r.Visible = value;
-            else if (prop == ClientIDProperty)
+            else if (prop == ClientIDProperty.Id)
                 r.ClientId = value;
-            else if (prop == IDProperty && value != null)
+            else if (prop == IDProperty.Id && value != null)
                 r.HasId = true;
-            else if (prop == InnerTextProperty)
+            else if (prop == InnerTextProperty.Id)
                 r.InnerText = value;
-            else if (prop == PostBack.UpdateProperty)
+            else if (prop == PostBack.UpdateProperty.Id)
                 r.HasPostbackUpdate = (bool)this.EvalPropertyValue(prop, value)!;
-            else if (prop is GroupedDotvvmProperty gp)
+            else if (prop.IsPropertyGroup)
             {
-                if (gp.PropertyGroup == CssClassesGroupDescriptor)
+                if (prop.IsInPropertyGroup(CssClassesGroupDescriptor.Id))
                     r.HasClass = true;
-                else if (gp.PropertyGroup == CssStylesGroupDescriptor)
+                else if (prop.IsInPropertyGroup(CssStylesGroupDescriptor.Id))
                     r.HasStyle = true;
-                else if (gp.PropertyGroup == AttributesGroupDescriptor)
+                else if (prop.IsInPropertyGroup(AttributesGroupDescriptor.Id))
                     r.HasAttributes = true;
                 else return false;
             }
@@ -409,14 +409,10 @@ namespace DotVVM.Framework.Controls
         {
             KnockoutBindingGroup? attributeBindingGroup = null;
 
-            if (r.HasAttributes) foreach (var (prop, valueRaw) in this.properties)
+            if (r.HasAttributes) foreach (var (attributeName, valueRaw) in this.Attributes.RawValues)
             {
-                if (prop is not GroupedDotvvmProperty gprop || gprop.PropertyGroup != AttributesGroupDescriptor)
-                    continue;
-
-                var attributeName = gprop.GroupMemberName;
                 var knockoutExpression = valueRaw switch {
-                    AttributeList list => list.GetKnockoutBindingExpression(this, HtmlWriter.GetSeparatorForAttribute(gprop.GroupMemberName)),
+                    AttributeList list => list.GetKnockoutBindingExpression(this, HtmlWriter.GetSeparatorForAttribute(attributeName)),
                     IValueBinding binding => binding.GetKnockoutBindingExpression(this),
                     _ => null
                 };

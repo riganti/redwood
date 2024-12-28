@@ -20,7 +20,7 @@ namespace DotVVM.Framework.Compilation
     /// <summary>
     /// Merges provided values based on implemented static 'MergeValues' or 'MergeExpression' method:
     ///
-    /// implement public static object MergeValues([DotvvmProperty], ValueA, ValueB) and this will decide which will should be used
+    /// implement public static object MergeValues([DotvvmPropertyId], ValueA, ValueB) and this will decide which will should be used
     /// or implement public static Expression MergeExpressions(DotvvmProperty, Expression a, Expression b)
     /// </summary>
     public abstract class AttributeValueMergerBase : IAttributeValueMerger
@@ -60,7 +60,10 @@ namespace DotVVM.Framework.Compilation
                 if (bindingA.BindingType != bindingB.BindingType) { error = $"Cannot merge values of different binding types"; return null; }
             }
 
-            var resultExpression = TryOptimizeMethodCall(TryFindMethod(GetType(), MergeExpressionsMethodName, Expression.Constant(property), Expression.Constant(valA), Expression.Constant(valB))) as Expression;
+            var resultExpression = TryOptimizeMethodCall(
+                TryFindMethod(GetType(), MergeExpressionsMethodName, Expression.Constant(property), Expression.Constant(valA), Expression.Constant(valB)) ??
+                TryFindMethod(GetType(), MergeExpressionsMethodName, Expression.Constant(property.Id), Expression.Constant(valA), Expression.Constant(valB))
+            ) as Expression;
 
             // Try to find MergeValues method if MergeExpression does not exists, or try to eval it to constant if expression is not constant
             if (resultExpression == null || valA.NodeType == ExpressionType.Constant && valB.NodeType == ExpressionType.Constant && resultExpression.NodeType != ExpressionType.Constant)
@@ -121,6 +124,7 @@ namespace DotVVM.Framework.Compilation
         protected virtual MethodCallExpression? TryFindMergeMethod(DotvvmProperty property, Expression a, Expression b)
         {
             return
+                TryFindMethod(GetType(), MergeValuesMethodName, Expression.Constant(property.Id), a, b) ??
                 TryFindMethod(GetType(), MergeValuesMethodName, Expression.Constant(property), a, b) ??
                 TryFindMethod(GetType(), MergeValuesMethodName, a, b);
         }
@@ -143,7 +147,7 @@ namespace DotVVM.Framework.Compilation
                 return methodCall;
             else return null;
         }
-        public virtual object? MergePlainValues(DotvvmProperty prop, object? a, object? b)
+        public virtual object? MergePlainValues(DotvvmPropertyId prop, object? a, object? b)
         {
             return ((dynamic)this).MergeValues(prop, a, b);
         }

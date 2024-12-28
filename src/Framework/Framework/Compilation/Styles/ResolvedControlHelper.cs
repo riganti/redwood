@@ -53,7 +53,7 @@ namespace DotVVM.Framework.Compilation.Styles
                 {
                     var templateControl = (DotvvmMarkupControl)Activator.CreateInstance(descriptor.ControlType)!;
                     markupControl.SetProperties(templateControl);
-                    foreach (var p in templateControl.properties)
+                    foreach (var p in templateControl.Properties)
                     {
                         var propertyDC = GetPropertyDataContext(obj, p.Key, dataContext);
                         control.SetProperty(
@@ -82,7 +82,7 @@ namespace DotVVM.Framework.Compilation.Styles
                 rc.ConstructorParameters = new object[] { htmlControl.TagName! };
             }
 
-            foreach (var p in obj.properties)
+            foreach (var p in obj.Properties)
             {
                 var propertyDC = GetPropertyDataContext(obj, p.Key, dataContext);
                 rc.SetProperty(

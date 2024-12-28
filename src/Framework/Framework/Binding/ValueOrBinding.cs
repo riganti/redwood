@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using DotVVM.Framework.Binding.Expressions;
@@ -50,6 +51,7 @@ namespace DotVVM.Framework.Binding
         }
 
         /// <summary> Creates new ValueOrBinding which contains the specified value. Note that there is an implicit conversion for this, so calling the constructor explicitly may be unnecessary. </summary>
+        [DebuggerStepThrough]
         public ValueOrBinding(T value)
         {
             this.value = value;

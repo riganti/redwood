@@ -223,9 +223,9 @@ namespace DotVVM.Framework.Controls
         public static TControl AddCssClass<TControl>(this TControl control, ValueOrBinding<string?> className)
             where TControl : IControlWithHtmlAttributes
         {
-            var classNameObj = className.UnwrapToObject();
-            if (classNameObj is null or "") return control;
-            return AddAttribute(control, "class", classNameObj);
+            if (className.ValueOrDefault is null or "") return control;
+            control.Attributes.AddInternal(DotvvmPropertyIdAssignment.GroupMembers.@class, className.UnwrapToObject());
+            return control;
         }
 
         /// <summary> Appends a css class to this control. Note that it is currently not supported if multiple bindings would have to be joined together. Returns <paramref name="control"/> for fluent API usage. </summary>
@@ -234,7 +234,8 @@ namespace DotVVM.Framework.Controls
         {
             if (className is null or "") return control;
 
-            return AddAttribute(control, "class", className);
+            control.Attributes.AddInternal(DotvvmPropertyIdAssignment.GroupMembers.@class, className);
+            return control;
         }
 
         /// <summary> Appends a list of css classes to this control. Returns <paramref name="control"/> for fluent API usage. </summary>

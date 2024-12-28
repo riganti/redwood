@@ -12,6 +12,6 @@ namespace DotVVM.Framework.Compilation
     public interface IAttributeValueMerger
     {
         ResolvedPropertySetter? MergeResolvedValues(ResolvedPropertySetter a, ResolvedPropertySetter b, out string? error);
-        object? MergePlainValues(DotvvmProperty prop, object? a, object? b);
+        object? MergePlainValues(DotvvmPropertyId prop, object? a, object? b);
     }
 }

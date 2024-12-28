@@ -118,13 +118,13 @@ namespace DotVVM.Framework.Controls
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool TouchProperty(DotvvmProperty prop, object? value, ref RenderState r)
+        private bool TouchProperty(DotvvmPropertyId prop, object? value, ref RenderState r)
         {
-            if (prop == TextProperty)
+            if (prop == TextProperty.Id)
                 r.Text = value;
-            else if (prop == RenderSpanElementProperty)
+            else if (prop == RenderSpanElementProperty.Id)
                 r.RenderSpanElement = (bool)EvalPropertyValue(RenderSpanElementProperty, value)!;
-            else if (prop == FormatStringProperty)
+            else if (prop == FormatStringProperty.Id)
                 r.HasFormattingStuff = true;
             else if (base.TouchProperty(prop, value, ref r.HtmlState)) { }
             else if (DotvvmControl.TouchProperty(prop, value, ref r.BaseState)) { }

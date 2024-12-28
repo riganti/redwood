@@ -11,7 +11,7 @@ namespace DotVVM.Framework.Binding
     /// </summary>
     public class CompileTimeOnlyDotvvmProperty : DotvvmProperty
     {
-        public CompileTimeOnlyDotvvmProperty()
+        private CompileTimeOnlyDotvvmProperty(string name, Type declaringType) : base(name, declaringType, isValueInherited: false)
         {
         }
 
@@ -37,7 +37,7 @@ namespace DotVVM.Framework.Binding
         /// </summary>
         public static CompileTimeOnlyDotvvmProperty Register<TPropertyType, TDeclaringType>(string propertyName)
         {
-            var property = new CompileTimeOnlyDotvvmProperty();
+            var property = new CompileTimeOnlyDotvvmProperty(propertyName, typeof(TDeclaringType));
             return (CompileTimeOnlyDotvvmProperty)Register<TPropertyType, TDeclaringType>(propertyName, property: property);
         }
     }
