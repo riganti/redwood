@@ -25,11 +25,7 @@ namespace DotVVM.Framework.Testing
         public DotvvmConfiguration Configuration { get; set; }
         public IDotvvmPresenter Presenter { get; set; }
         public RouteBase Route { get; set; }
-        public bool IsPostBack
-        {
-            get => RequestType == DotvvmRequestType.Command;
-            [Obsolete("Don't do this", true)] set { }
-        }
+        public bool IsPostBack => RequestType == DotvvmRequestType.Command;
         public DotvvmRequestType RequestType { get; set; } = DotvvmRequestType.Navigate;
         public IDictionary<string, object> Parameters { get; set; }
         public ResourceManager ResourceManager { get; set; }

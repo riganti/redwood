@@ -53,7 +53,7 @@ namespace DotVVM.Framework.Hosting
         /// <summary>
         /// Determines whether this HTTP request is a command executing POST request.
         /// </summary>
-        bool IsPostBack { get; set; }
+        bool IsPostBack { get; }
 
         /// <summary>
         /// Determines type of the request - initial GET, command, staticCommand, ...

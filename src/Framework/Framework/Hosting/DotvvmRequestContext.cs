@@ -26,21 +26,12 @@ namespace DotVVM.Framework.Hosting
         /// <summary>
         /// Determines whether this HTTP request is a postback or a classic GET request.
         /// </summary>
-        public bool IsPostBack
-        {
-            get => RequestType == DotvvmRequestType.Command;
-            set
-            {
-                // TODO: remove this setter
-                if (value) RequestType = DotvvmRequestType.Command;
-                else if (RequestType == DotvvmRequestType.Command) RequestType = DotvvmRequestType.Navigate;
-            }
-        }
+        public bool IsPostBack => RequestType == DotvvmRequestType.Command;
 
         /// <summary>
         /// Determines type of the request - initial GET, command, staticCommand, ...
         /// </summary>
-        public DotvvmRequestType RequestType { get; private set; }
+        public DotvvmRequestType RequestType { get; }
 
         /// <summary>
         /// Gets the view model object for the current HTTP request.
