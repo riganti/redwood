@@ -22,6 +22,7 @@ using DotVVM.Framework.Controls;
 using DotVVM.Framework.Compilation;
 using DotVVM.Framework.Testing;
 using System.Threading.Tasks;
+using DotVVM.Framework.Compilation.ControlTree.Resolved;
 
 namespace DotVVM.Framework.Tests.Runtime
 {
@@ -134,15 +135,47 @@ namespace DotVVM.Framework.Tests.Runtime
             check.CheckString(d.ToString());
         }
 
+        private void TriggerDataContextMismatchError(DataContextStack type1, DataContextStack type2)
+        {
+            _ = HtmlGenericControl.VisibleProperty; // runtime hack for static construction
+            var binding = ValueBindingExpression.CreateBinding(bindingService, a => false, type1);
+            var control = new HtmlGenericControl("div");
+            control.SetValue(Internal.DataContextTypeProperty, type2);
+            control.SetProperty(c => c.Visible, binding);
+            control.Visible.ToString();
+        }
+
         [TestMethod]
         public void CantFindDataContextSpace()
         {
-            _ = HtmlGenericControl.VisibleProperty; // runtime hack for static construction
-            var binding = ValueBindingExpression.CreateBinding(bindingService, a => false, DataContextStack.Create(typeof(string)));
-            var control = new HtmlGenericControl("div");
-            control.SetValue(Internal.DataContextTypeProperty, DataContextStack.Create(typeof(string), DataContextStack.Create(typeof(int))));
-            control.SetProperty(c => c.Visible, binding);
-            check.CheckException(() => control.Visible.ToString());
+            check.CheckException(() => TriggerDataContextMismatchError(
+                DataContextStack.Create(typeof(string)),
+                DataContextStack.Create(typeof(string), DataContextStack.Create(typeof(int))))
+            );
+        }
+
+        [TestMethod]
+        public void CantFindDataContextSpace_NSDifference()
+        {
+            var root = DataContextStack.Create(typeof(Binding.TestViewModel3), extensionParameters: [ new CurrentMarkupControlExtensionParameter(new ResolvedTypeDescriptor(typeof(DotvvmMarkupControl))) ]);
+            var type1 = DataContextStack.Create(typeof(Binding.TestViewModel), root);
+            var type2 = DataContextStack.Create(typeof(Runtime.ControlTree.TestViewModel), DataContextStack.Create(typeof(string), root));
+            check.CheckException(() => TriggerDataContextMismatchError(type1, type2));
+        }
+        [TestMethod]
+        public void CantFindDataContextSpace_ParentChild()
+        {
+            var type1 = DataContextStack.Create(typeof(Binding.TestViewModel));
+            var type2 = DataContextStack.CreateCollectionElement(typeof(int), type1);
+            check.CheckException(() => TriggerDataContextMismatchError(type1, type2));
+        }
+        [TestMethod]
+        public void CantFindDataContextSpace_MissingEP()
+        {
+            var root = DataContextStack.Create(typeof(Binding.TestViewModel));
+            var type1 = DataContextStack.CreateCollectionElement(typeof(int), root, extensionParameters: [ new InjectedServiceExtensionParameter("services", new ResolvedTypeDescriptor(typeof(IServiceProvider))) ]);
+            var type2 = DataContextStack.CreateCollectionElement(typeof(int), root);
+            check.CheckException(() => TriggerDataContextMismatchError(type1, type2));
         }
     }
 }

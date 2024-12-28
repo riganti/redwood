@@ -570,10 +570,43 @@ namespace DotVVM.Framework.Binding
             {
                 get
                 {
-                    var actualContextsHelp =
-                        ActualContextTypes is null ? "" :
-                        $" Real data context types: {string.Join(", ", ActualContextTypes.Select(t => t?.ToCode(stripNamespace: true) ?? "null"))}.";
-                    return  $"Could not find DataContext space of '{ContextObject}'. The DataContextType property of the binding does not correspond to DataContextType of the {Control.GetType().Name} nor any of its ancestors. Control's context is {ControlContext}, binding's context is {BindingContext}." + actualContextsHelp;
+                    var message = new StringBuilder()
+                        .Append($"Could not find DataContext space of '{ContextObject}'. The DataContextType property of the binding does not correspond to DataContextType of the {Control.GetType().Name} nor any of its ancestors.");
+
+                    var stackComparison = DataContextStack.CompareStacksMessage(ControlContext, BindingContext);
+
+                    for (var i = 0; i < stackComparison.Length; i++)
+                    {
+                        var level = i switch {
+                            0 => "_this:    ",
+                            1 => "_parent:  ",
+                            _ => $"_parent{i}: "
+                        };
+
+                        message.Append($"\nControl {level}");
+                        foreach (var (control, binding) in stackComparison[i])
+                        {
+                            var length = Math.Max(control.Length, binding.Length);
+                            if (control == binding)
+                                message.Append(control);
+                            else
+                                message.Append(StringUtils.PadCenter(StringUtils.UnicodeUnderline(control), length + 2));
+                        }
+
+                        message.Append($"\nBinding {level}");
+                        foreach (var (control, binding) in stackComparison[i])
+                        {
+                            var length = Math.Max(control.Length, binding.Length);
+                            if (control == binding)
+                                message.Append(binding);
+                            else
+                                message.Append(StringUtils.PadCenter(StringUtils.UnicodeUnderline(binding), length + 2));
+                        }
+                    }
+
+                    if (ActualContextTypes is {})
+                        message.Append($"\nReal data context types: {string.Join(", ", ActualContextTypes.Select(t => t?.ToCode(stripNamespace: true) ?? "null"))}");
+                    return message.ToString();
                 }
             }
         }

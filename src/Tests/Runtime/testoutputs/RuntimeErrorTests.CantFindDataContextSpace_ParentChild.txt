@@ -1,0 +1,7 @@
+InvalidDataContextTypeException occurred: Could not find DataContext space of '{value: False}'. The DataContextType property of the binding does not correspond to DataContextType of the HtmlGenericControl nor any of its ancestors.
+Control _this:     t͟ype͟=͟i͟n͟t͟,͟ ͟e͟x͟t͟=͟[͟_͟i͟n͟d͟e͟x͟:͟ ͟i͟n͟t͟,͟ ͟_͟c͟o͟l͟l͟e͟c͟t͟i͟o͟n͟:͟ ͟B͟i͟n͟d͟i͟n͟gC͟o͟l͟l͟e͟c͟t͟i͟o͟n͟I͟n͟f͟o͟]͟ 
+Binding _this:                                (͟m͟i͟s͟s͟i͟n͟g)͟                            
+Control _parent:  type=TestViewModel
+Binding _parent:  type=TestViewModel
+Real data context types: 
+    at object DotVVM.Framework.Controls.DotvvmBindableObject.EvalPropertyValue(DotvvmProperty property, object value)
