@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DotVVM.Samples.Tests.Base;
 using DotVVM.Testing.Abstractions;
@@ -128,7 +129,7 @@ namespace DotVVM.Samples.Tests.Feature
                     .ThrowIfDifferentCountThan(4);
                 AssertUI.TextEquals(cells[0].Single("span"), "1");
                 AssertUI.TextEquals(cells[1].Single("h2"), "John Doe");
-                AssertUI.TextEquals(cells[2].Single("span"), "4/1/1976 12:00:00 AM");
+                AssertUI.Text(cells[2].Single("span"), t => Regex.Replace(t, "\\s+", "") == "4/1/197612:00:00AM");
                 AssertUI.IsNotChecked(cells[3].Single("input[type=checkbox]"));
             });
         }

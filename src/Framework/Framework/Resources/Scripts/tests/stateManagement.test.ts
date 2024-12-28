@@ -692,3 +692,106 @@ test("state is frozen", () => {
     s.doUpdateNow()
     expect(Object.isFrozen(vm.Dynamic.state)).toBe(true);
 })
+
+function setupValidatingArraySubscriptions(callback: (arr: DotvvmObservable<{ Id: number }[]>, initial: { Id: number }[], subscribeLog: any[], diffLog: any[]) => void) {
+    const arr = vm.Array as DotvvmObservable<{ Id: number }[]>
+    expect(arr.push != null && ko.isObservable(arr)).toBe(true)
+    const initial: { Id: number }[] = s.state.Array
+
+    function validateElement(item: any, label: number|string) {
+        label = `${label} [${ko.toJSON(item)}]`
+        if (!ko.isObservable(item))
+            throw `Element ${label} is not observable`
+        if (!("state" in item))
+            throw `Element ${label} does not have state`
+        if (!ko.isObservable(item().Id) || !("state" in item().Id))
+            throw `Element ${label} does not have Id observable`
+        if (typeof item().Id() != "number")
+            throw `Element ${label} does not have number Id`
+    }
+
+    const eventLog: any[] = []
+    const diffLog: any[] = []
+    const sub1 = arr.subscribe(newValue => {
+        eventLog.push(ko.toJS(newValue))
+        
+        newValue.forEach(validateElement)
+    });
+    const sub2 = arr.subscribe(diff => {
+        diffLog.push(ko.toJS(diff))
+        
+        diff.forEach((e, i) => {
+            validateElement(e.value, `${e.index}:${e.status}`)
+        })
+
+    }, null, "arrayChange")
+
+
+    try {
+        callback(arr, initial, eventLog, diffLog)
+    } finally {
+        sub1.dispose()
+        sub2.dispose()
+    }
+}
+
+test("ko.observableArray - clones pushed plain observable", () => {
+    setupValidatingArraySubscriptions((arr: any, initial) => {
+        arr.push(ko.observable({ Id: ko.observable(1) }))
+
+        arr.replace(arr().at(-1)!, ko.observable({ Id: ko.observable(10) }))
+
+        arr.splice(0, 0, ko.observable({ Id: ko.observable(2) }))
+
+        expect(arr.state).toEqual([{ Id: 2, $type: "t2" }, ...initial, { Id: 10, $type: "t2" }])
+        expect(arr.state).toEqual(ko.toJS(arr))
+    })
+})
+
+test("ko.observableArray - clones pushed plain objects", () => {
+    setupValidatingArraySubscriptions((arr: any, initial) => {
+        arr.push({ Id: 1 })
+
+        arr.replace(arr().at(-1)!, { Id: 10 })
+
+        arr.splice(0, 0, { Id: 2 })
+
+        expect(arr.state).toEqual([{ Id: 2, $type: "t2" }, ...initial, { Id: 10, $type: "t2" }])
+        expect(arr.state).toEqual(ko.toJS(arr))
+    })
+})
+
+test("ko.observableArray - clones pushed mixed observables", () => {
+    setupValidatingArraySubscriptions((arr: any, initial) => {
+        arr.push(ko.observable({ Id: 1 }))
+
+        arr.replace(arr().at(-1)!, { Id: ko.observable(10) })
+
+        arr.splice(0, 0, ko.observable({ Id: 2 }))
+
+        expect(arr.state).toEqual([{ Id: 2, $type: "t2" }, ...initial, { Id: 10, $type: "t2" }])
+        expect(arr.state).toEqual(ko.toJS(arr))
+    })
+})
+test("ko.observableArray - clones pushed dotvvm object taken from elsewhere", () => {
+    setupValidatingArraySubscriptions((arr: any, initial) => {
+        arr.push({ Id: 1 })
+        arr.push(vm.Array().at(-1)())
+        arr().at(-1)().Id(2)
+
+        expect(arr.state).toEqual([...initial, { Id: 1, $type: "t2" }, { Id: 2, $type: "t2" }])
+        expect(arr.state).toEqual(ko.toJS(arr))
+    })
+})
+
+// TODO: does not work yet
+// test("ko.observableArray - clones pushed dotvvm observable taken from elsewhere", () => {
+//     setupValidatingArraySubscriptions((arr: any, initial) => {
+//         arr.push({ Id: 1 })
+//         arr.push(vm.Array().at(-1))
+//         arr().at(-1)().Id(2)
+
+//         expect(arr.state).toEqual([...initial, { Id: 1, $type: "t2" }, { Id: 2, $type: "t2" }])
+//         expect(arr.state).toEqual(ko.toJS(arr))
+//     })
+// })

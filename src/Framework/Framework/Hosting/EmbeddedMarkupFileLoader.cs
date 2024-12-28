@@ -1,12 +1,15 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
 using DotVVM.Framework.Configuration;
+using DotVVM.Framework.Utils;
 
 namespace DotVVM.Framework.Hosting
 {
+    /// <summary> Read markup files from embedded resources, if the virtual path has the following format: <c>embedded://{AssemblyName}/{ResourceName}</c></summary>
     public class EmbeddedMarkupFileLoader : IMarkupFileLoader
     {
         /// <summary>
@@ -23,7 +26,7 @@ namespace DotVVM.Framework.Hosting
 
             if (resourceName.IndexOf('/') == -1 || resourceName.IndexOf('/') == 0)
             {
-                throw new ArgumentException("Wrong string format", "virtualPath");
+                throw new ArgumentException("Wrong embedded file format. Use `embedded://{AssemblyName}/{ResourceName}`", "virtualPath");
             }
 
             string assemblyName = resourceName.Substring(0, resourceName.IndexOf('/'));
@@ -37,20 +40,22 @@ namespace DotVVM.Framework.Hosting
             //no such assembly found
             catch (FileLoadException)
             {
-                throw new ArgumentException("No such assembly was found", "virtualPath");
+                throw new ArgumentException($"Assembly '{assemblyName}' was not found", "virtualPath");
             }
 
             //no such resource found
             resourceName = resourceName.Replace('/', '.');
             if (assembly.GetManifestResourceInfo(resourceName) == null)
             {
-                throw new ArgumentException("No such resource was found", "virtualPath");
+                throw new ArgumentException($"Resource '{resourceName}' was not found in assembly '{assembly.FullName}'", "virtualPath");
             }
 
-            //load the file
-            using (Stream stream = assembly.GetManifestResourceStream(resourceName)!)
-            using (StreamReader sr = new StreamReader(stream))
-                return new MarkupFile(virtualPath, virtualPath, sr.ReadToEnd());
+            return new MarkupFile(virtualPath, virtualPath, () => {
+                //load the file
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName)!)
+                using (var reader = new StreamReader(stream))
+                    return reader.ReadToEnd();
+            });
         }
 
         /// <summary>

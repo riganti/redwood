@@ -21,7 +21,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report-name }}
         path: ${{ inputs.trx-path }}

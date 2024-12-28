@@ -71,7 +71,7 @@ namespace DotVVM.Framework.Compilation
         /// * the locations are processed using MapBindingLocation to make them useful in the context of a dothtml file </summary>
         Dictionary<Exception, DotvvmCompilationSourceLocation?> AnnotateBindingExceptionWithLocation(ResolvedBinding binding, DotvvmProperty? relatedProperty, IEnumerable<Exception> errors)
         {
-            var result = new Dictionary<Exception, DotvvmCompilationSourceLocation?>(new ReferenceEqualityComparer<Exception>());
+            var result = new Dictionary<Exception, DotvvmCompilationSourceLocation?>(ReferenceEqualityComparer<Exception>.Instance);
             void recurse(Exception exception, DotvvmCompilationSourceLocation? location)
             {
                 if (result.ContainsKey(exception))

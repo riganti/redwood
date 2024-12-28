@@ -1,4 +1,5 @@
-﻿using DotVVM.Samples.Tests.Base;
+﻿using System.Text.RegularExpressions;
+using DotVVM.Samples.Tests.Base;
 using DotVVM.Testing.Abstractions;
 using Riganti.Selenium.Core;
 using Xunit;
@@ -52,6 +53,10 @@ namespace DotVVM.Samples.Tests.Feature
             });
         }
 
+        // different versions of localization libraries may produce different whitespace (no space before AM/PM, no-break spaces, ...)
+        static bool EqualsIgnoreSpace(string a, string b) => Regex.Replace(a, @"\s+", "") == Regex.Replace(b, @"\s+", "");
+
+
         [Fact]
         public void Feature_ViewModelDeserialization_PropertyNullAssignment()
         {
@@ -64,13 +69,13 @@ namespace DotVVM.Samples.Tests.Feature
                 AssertUI.InnerTextEquals(value, "");
 
                 buttons[0].Click();
-                AssertUI.InnerTextEquals(value, "1/2/2023 3:04:05 AM");
+                AssertUI.InnerText(value, t => EqualsIgnoreSpace(t, "1/2/2023 3:04:05 AM"));
 
                 buttons[1].Click();
                 AssertUI.InnerTextEquals(value, "");
 
                 buttons[0].Click();
-                AssertUI.InnerTextEquals(value, "1/2/2023 3:04:05 AM");
+                AssertUI.InnerText(value, t => EqualsIgnoreSpace(t, "1/2/2023 3:04:05 AM"));
 
                 buttons[2].Click();
                 AssertUI.InnerTextEquals(value, "");

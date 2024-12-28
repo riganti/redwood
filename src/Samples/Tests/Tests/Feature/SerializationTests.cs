@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Text.RegularExpressions;
 using DotVVM.Samples.Tests.Base;
 using DotVVM.Testing.Abstractions;
 using OpenQA.Selenium;
@@ -253,6 +254,10 @@ namespace DotVVM.Samples.Tests.Feature
             });
         }
 
+        // different versions of localization libraries may produce different whitespace (no space before AM/PM, no-break spaces, ...)
+        static bool EqualsIgnoreSpace(string a, string b) => Regex.Replace(a, @"\s+", "") == Regex.Replace(b, @"\s+", "");
+
+
         [Fact]
         public void Feature_Serialization_DateOnly()
         {
@@ -290,16 +295,16 @@ namespace DotVVM.Samples.Tests.Feature
 
                 // Initial state
                 const string initialTimeOnlyValue = "11:56:42 PM";
-                AssertUI.TextEquals(timeOnlyTextBox, initialTimeOnlyValue);
-                AssertUI.TextEquals(timeOnlySpan, initialTimeOnlyValue);
-                AssertUI.TextEquals(timeOnlyPlain, "TimeOnly: " + initialTimeOnlyValue);
+                AssertUI.Text(timeOnlyTextBox, t => EqualsIgnoreSpace(t, initialTimeOnlyValue));
+                AssertUI.Text(timeOnlySpan, t => EqualsIgnoreSpace(t, initialTimeOnlyValue));
+                AssertUI.Text(timeOnlyPlain, t => EqualsIgnoreSpace(t, "TimeOnly: " + initialTimeOnlyValue));
 
                 // Change date
                 const string newTimeOnlyValue = "9:23:00 AM";
                 timeOnlyTextBox.Clear().SendKeys(newTimeOnlyValue).SendEnterKey();
-                AssertUI.TextEquals(timeOnlyTextBox, newTimeOnlyValue);
-                AssertUI.TextEquals(timeOnlySpan, newTimeOnlyValue);
-                AssertUI.TextEquals(timeOnlyPlain, "TimeOnly: " + newTimeOnlyValue);
+                AssertUI.Text(timeOnlyTextBox, t => EqualsIgnoreSpace(t, newTimeOnlyValue));
+                AssertUI.Text(timeOnlySpan, t => EqualsIgnoreSpace(t, newTimeOnlyValue));
+                AssertUI.Text(timeOnlyPlain, t => EqualsIgnoreSpace(t, "TimeOnly: " + newTimeOnlyValue));
             });
         }
 

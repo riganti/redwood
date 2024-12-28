@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using DotVVM.Samples.Tests.Base;
 using DotVVM.Testing.Abstractions;
 using OpenQA.Selenium;
@@ -125,6 +126,9 @@ window.getSelectionText = function (dataui) {
                 new object[] { "cs-CZ", SamplesRouteUrls.ControlSamples_TextBox_TextBox_Format, "#czech"},
                 new object[] { "en-US", SamplesRouteUrls.ControlSamples_TextBox_TextBox_Format, "#english"},
             };
+        
+        // different versions of localization libraries may produce different whitespace (no space before AM/PM, no-break spaces, ...)
+        static bool EqualsIgnoreSpace(string a, string b) => Regex.Replace(a, @"\s+", "") == Regex.Replace(b, @"\s+", "");
 
         [Theory]
         [MemberData(nameof(TextBoxStringFormatChangedCommandData))]
@@ -145,13 +149,13 @@ window.getSelectionText = function (dataui) {
                 AssertUI.Attribute(dateTextBox, "value", dateResult1);
 
                 var dateText = browser.First("#DateValueText");
-                AssertUI.InnerTextEquals(dateText, new DateTime(2015, 12, 27).ToString("G", culture));
+                AssertUI.InnerText(dateText, t => EqualsIgnoreSpace(t, new DateTime(2015, 12, 27).ToString("G", culture)));
 
                 var nullableDateTextBox = browser.First("#nullableDateTextbox");
-                AssertUI.Attribute(nullableDateTextBox, "value", new DateTime(2015, 12, 27).ToString("G", culture));
+                AssertUI.Attribute(nullableDateTextBox, "value", t => EqualsIgnoreSpace(t, new DateTime(2015, 12, 27).ToString("G", culture)));
 
                 var nullableDateText = browser.First("#nullableDateValueText");
-                AssertUI.InnerTextEquals(nullableDateText, new DateTime(2015, 12, 27).ToString("G", culture));
+                AssertUI.InnerText(nullableDateText, t => EqualsIgnoreSpace(t, new DateTime(2015, 12, 27).ToString("G", culture)));
 
                 var numberTextbox = browser.First("#numberTextbox");
                 AssertUI.Attribute(numberTextbox, "value", 123.1235.ToString(culture));
@@ -171,7 +175,7 @@ window.getSelectionText = function (dataui) {
                 dateTextBox.Click();
 
                 //check new values
-                AssertUI.InnerTextEquals(dateText, new DateTime(2018, 12, 27).ToString("G", culture));
+                AssertUI.InnerText(dateText, t => EqualsIgnoreSpace(t, new DateTime(2018, 12, 27).ToString("G", culture)));
                 AssertUI.InnerTextEquals(numberValueText, 2000.ToString(culture));
 
                 AssertUI.Attribute(numberTextbox, "value", 2000.ToString("n4", culture));
@@ -183,7 +187,7 @@ window.getSelectionText = function (dataui) {
                 dateTextBox.Click();
 
                 //check displayed values (behavior change in 3.0 - previous values should stay there)
-                AssertUI.InnerTextEquals(dateText, new DateTime(2018, 12, 27).ToString("G", culture));
+                AssertUI.InnerText(dateText, t => EqualsIgnoreSpace(t, new DateTime(2018, 12, 27).ToString("G", culture)));
                 AssertUI.InnerTextEquals(numberValueText, 2000.ToString(culture));
 
                 AssertUI.Attribute(numberTextbox, "value", "000//a");
@@ -195,20 +199,20 @@ window.getSelectionText = function (dataui) {
                 dateTextBox.Click();
 
                 //check new values
-                AssertUI.InnerTextEquals(dateText, new DateTime(2018, 1, 1).ToString("G", culture));
+                AssertUI.InnerText(dateText, t => EqualsIgnoreSpace(t, new DateTime(2018, 1, 1).ToString("G", culture)));
                 AssertUI.InnerTextEquals(numberValueText, 1000.550277.ToString(culture));
 
                 AssertUI.Attribute(numberTextbox, "value", 1000.550277.ToString("n4", culture));
                 AssertUI.Attribute(dateTextBox, "value", dateResult3);
 
                 // try to supply different date formats
-                dateTextBox.Clear().SendKeys(new DateTime(2020, 2, 16).ToString("G", culture)).SendKeys(Keys.Tab);
-                AssertUI.Attribute(dateTextBox, "value", new DateTime(2020, 2, 16).ToString("d", culture));
-                AssertUI.InnerTextEquals(dateText, new DateTime(2020, 2, 16).ToString("G", culture));
+                dateTextBox.Clear().SendKeys(cultureName switch { "en-US" => "2/16/2020 12:00:00 AM", "cs-CZ" => "16.02.2020 0:00:00", _ => "" }).SendKeys(Keys.Tab);
+                AssertUI.Attribute(dateTextBox, "value", t => EqualsIgnoreSpace(t, new DateTime(2020, 2, 16).ToString("d", culture)));
+                AssertUI.InnerText(dateText, t => EqualsIgnoreSpace(t, new DateTime(2020, 2, 16).ToString("G", culture)));
 
                 nullableDateTextBox.Clear().SendKeys(new DateTime(2020, 4, 2).ToString("d", culture)).SendKeys(Keys.Tab);
-                AssertUI.Attribute(nullableDateTextBox, "value", new DateTime(2020, 4, 2).ToString("G", culture));
-                AssertUI.InnerTextEquals(nullableDateText, new DateTime(2020, 4, 2).ToString("G", culture));
+                AssertUI.Attribute(nullableDateTextBox, "value", t => EqualsIgnoreSpace(t, new DateTime(2020, 4, 2).ToString("G", culture)));
+                AssertUI.InnerText(nullableDateText, t => EqualsIgnoreSpace(t, new DateTime(2020, 4, 2).ToString("G", culture)));
             });
         }
 

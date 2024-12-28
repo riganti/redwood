@@ -77,7 +77,6 @@ namespace DotVVM.Framework.ResourceManagement
         /// <summary> Registers a <see cref="ScriptModuleResource" /> from the specified file.
         /// The file can be anywhere in the filesystem, it does not have to be in the wwwroot folder.
         /// DotVVM will handle its serving, caching, ... automatically </summary>
-        [Obsolete("<script type='module'> is always deferred, the attribute does nothing")]
         public static LinkResourceBase RegisterScriptModuleFile(
             this DotvvmResourceRepository repo,
             string name,
@@ -88,7 +87,7 @@ namespace DotVVM.Framework.ResourceManagement
         /// <summary> Registers a <see cref="ScriptModuleResource" /> from the specified file.
         /// The file can be anywhere in the filesystem, it does not have to be in the wwwroot folder.
         /// DotVVM will handle its serving, caching, ... automatically </summary>
-        [Obsolete("<script type='module'> is always deferred, the attribute does nothing")]
+        [Obsolete("<script type='module'> is always deferred, the attribute does nothing. Please remove the defer parameter.")]
         public static LinkResourceBase RegisterScriptModuleFile(
             this DotvvmResourceRepository repo,
             string name,

@@ -1873,7 +1873,6 @@ ko.utils.arrayForEach(["pop", "push", "reverse", "shift", "sort", "splice", "uns
         // (for consistency with mutating regular observables)
         var underlyingArray = this.peek();
         this.valueWillMutate();
-        this.cacheDiffForKnownOperation(underlyingArray, methodName, arguments);
         var methodCallResult = underlyingArray[methodName].apply(underlyingArray, arguments);
 
         applyObservableValidatorIfExists.call(this, underlyingArray);
@@ -1901,6 +1900,7 @@ ko.isObservableArray = function (instance) {
 ko.exportSymbol('observableArray', ko.observableArray);
 ko.exportSymbol('isObservableArray', ko.isObservableArray);
 var arrayChangeEventName = 'arrayChange';
+var appliedTrackChangesSymbol = Symbol()
 ko.extenders['trackArrayChanges'] = function(target, options) {
     // Use the provided options--each call to trackArrayChanges overwrites the previously set options
     target.compareArrayOptions = {};
@@ -1910,9 +1910,10 @@ ko.extenders['trackArrayChanges'] = function(target, options) {
     target.compareArrayOptions['sparse'] = true;
 
     // Only modify the target observable once
-    if (target.cacheDiffForKnownOperation) {
+    if (target[appliedTrackChangesSymbol]) {
         return;
     }
+    target[appliedTrackChangesSymbol] = true;
     var trackingChanges = false,
         cachedDiff = null,
         changeSubscription,
@@ -2003,60 +2004,6 @@ ko.extenders['trackArrayChanges'] = function(target, options) {
 
         return cachedDiff;
     }
-
-    target.cacheDiffForKnownOperation = function(rawArray, operationName, args) {
-        // Only run if we're currently tracking changes for this observable array
-        // and there aren't any pending deferred notifications.
-        if (!trackingChanges || pendingChanges) {
-            return;
-        }
-        var diff = [],
-            arrayLength = rawArray.length,
-            argsLength = args.length,
-            offset = 0;
-
-        function pushDiff(status, value, index) {
-            return diff[diff.length] = { 'status': status, 'value': value, 'index': index };
-        }
-        switch (operationName) {
-            case 'push':
-                offset = arrayLength;
-            case 'unshift':
-                for (var index = 0; index < argsLength; index++) {
-                    pushDiff('added', args[index], offset + index);
-                }
-                break;
-
-            case 'pop':
-                offset = arrayLength - 1;
-            case 'shift':
-                if (arrayLength) {
-                    pushDiff('deleted', rawArray[offset], offset);
-                }
-                break;
-
-            case 'splice':
-                // Negative start index means 'from end of array'. After that we clamp to [0...arrayLength].
-                // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice
-                var startIndex = Math.min(Math.max(0, args[0] < 0 ? arrayLength + args[0] : args[0]), arrayLength),
-                    endDeleteIndex = argsLength === 1 ? arrayLength : Math.min(startIndex + (args[1] || 0), arrayLength),
-                    endAddIndex = startIndex + argsLength - 2,
-                    endIndex = Math.max(endDeleteIndex, endAddIndex),
-                    additions = [], deletions = [];
-                for (var index = startIndex, argsIndex = 2; index < endIndex; ++index, ++argsIndex) {
-                    if (index < endDeleteIndex)
-                        deletions.push(pushDiff('deleted', rawArray[index], index));
-                    if (index < endAddIndex)
-                        additions.push(pushDiff('added', args[argsIndex], index));
-                }
-                ko.utils.findMovesInArrayComparison(deletions, additions);
-                break;
-
-            default:
-                return;
-        }
-        cachedDiff = diff;
-    };
 };
 var computedState = ko.utils.createSymbolOrString('_state');
 

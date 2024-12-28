@@ -140,6 +140,7 @@ namespace DotVVM.Framework.Controls
         protected internal override void OnPreRender(IDotvvmRequestContext context)
         {
             SetChildren(context, renderClientTemplate: !RenderOnServer, memoizeReferences: false);
+            childrenCache.Clear(); // not going to need the unreferenced children anymore
             base.OnPreRender(context);
         }
 
@@ -250,7 +251,7 @@ namespace DotVVM.Framework.Controls
             return emptyDataContainer;
         }
 
-        private ConditionalWeakTable<object, DataItemContainer> childrenCache = new ConditionalWeakTable<object, DataItemContainer>();
+        private readonly Dictionary<object, DataItemContainer> childrenCache = new(ReferenceEqualityComparer<object>.Instance);
         private DotvvmControl AddItem(IList<DotvvmControl> c, IDotvvmRequestContext context, object? item = null, int? index = null, bool serverOnly = false, bool allowMemoizationRetrieve = false, bool allowMemoizationStore = false)
         {
             if (allowMemoizationRetrieve && item != null && childrenCache.TryGetValue(item, out var container2) && container2.Parent == null)
@@ -279,8 +280,12 @@ namespace DotVVM.Framework.Controls
             // write it to the cache after the content is build. If it would be before that, exception could be suppressed
             if (allowMemoizationStore && item != null)
             {
-                // this GetValue call adds the value without raising exception when the value is already added...
-                childrenCache.GetValue(item, _ => container);
+#if DotNetCore
+                childrenCache.TryAdd(item, container);
+#else
+                if (!childrenCache.ContainsKey(item))
+                    childrenCache.Add(item, container);
+#endif
             }
 
             return container;
@@ -313,6 +318,7 @@ namespace DotVVM.Framework.Controls
             if (dataSource != null)
             {
                 var index = 0;
+                var isCommand = context.RequestType == DotvvmRequestType.Command; // on GET request we are not initializing the Repeater twice
                 foreach (var item in dataSource)
                 {
                     if (SeparatorTemplate != null && index > 0)
@@ -320,7 +326,7 @@ namespace DotVVM.Framework.Controls
                         AddSeparator(Children, context);
                     }
                     AddItem(Children, context, item, index, serverOnly,
-                        allowMemoizationRetrieve: context.RequestType == DotvvmRequestType.Command && !memoizeReferences, // on GET request we are not initializing the Repeater twice
+                        allowMemoizationRetrieve: isCommand && !memoizeReferences,
                         allowMemoizationStore: memoizeReferences
                     );
                     index++;

@@ -55,51 +55,41 @@ namespace DotVVM.Samples.Tests.Feature
                 browser.NavigateToUrl(url);
                 VerifyPageIsNotThrowingAuthError(browser);
 
-                var grid = browser.Single("next-history-grid", SelectByDataUi);
-                var pager = browser.Single("next-history-pager", SelectByDataUi);
+                var grid = "[data-ui='next-history-grid']";
+                var pager = "[data-ui='next-history-pager']";
 
                 // get first issue on the first page
-                var issueId1 = grid.ElementAt("tbody tr td", 0).GetInnerText();
+                var issueId1 = browser.ElementAt($"{grid} tbody tr td", 0).GetInnerText();
 
                 // go to page 2
-                pager.ElementAt("li", 3).Single("a").Click().Wait(500);
+                browser.ElementAt($"{pager} li", 3).Single("a").Click().Wait(500);
 
-                grid = browser.Single("next-history-grid", SelectByDataUi);
-                pager = browser.Single("next-history-pager", SelectByDataUi);
-                AssertUI.TextNotEquals(grid.ElementAt("tbody tr td", 0), issueId1);
-                var issueId2 = grid.ElementAt("tbody tr td", 0).GetInnerText();
+                AssertUI.TextNotEquals(browser.ElementAt($"{grid} tbody tr td", 0), issueId1);
+                var issueId2 = browser.ElementAt($"{grid} tbody tr td", 0).GetInnerText();
 
                 // go to next page
-                pager.ElementAt("li", 5).Single("a").Click().Wait(500);
+                browser.ElementAt($"{pager} li", 5).Single("a").Click().Wait(500);
 
-                grid = browser.Single("next-history-grid", SelectByDataUi);
-                pager = browser.Single("next-history-pager", SelectByDataUi);
-                AssertUI.TextNotEquals(grid.ElementAt("tbody tr td", 0), issueId1);
-                AssertUI.TextNotEquals(grid.ElementAt("tbody tr td", 0), issueId2);
-                var issueId3 = grid.ElementAt("tbody tr td", 0).GetInnerText();
+                AssertUI.TextNotEquals(browser.ElementAt($"{grid} tbody tr td", 0), issueId1);
+                AssertUI.TextNotEquals(browser.ElementAt($"{grid} tbody tr td", 0), issueId2);
+                var issueId3 = browser.ElementAt($"{grid} tbody tr td", 0).GetInnerText();
 
                 // go to first page
-                pager.ElementAt("li", 0).Single("a").Click().Wait(500);
+                browser.ElementAt($"{pager} li", 0).Single("a").Click().Wait(500);
 
-                grid = browser.Single("next-history-grid", SelectByDataUi);
-                pager = browser.Single("next-history-pager", SelectByDataUi);
-                AssertUI.TextEquals(grid.ElementAt("tbody tr td", 0), issueId1);
+                AssertUI.TextEquals(browser.ElementAt($"{grid} tbody tr td", 0), issueId1);
 
                 // go to page 4
-                pager.ElementAt("li", 5).Single("a").Click().Wait(500);
+                browser.ElementAt($"{pager} li", 5).Single("a").Click().Wait(500);
 
-                grid = browser.Single("next-history-grid", SelectByDataUi);
-                pager = browser.Single("next-history-pager", SelectByDataUi);
-                AssertUI.TextNotEquals(grid.ElementAt("tbody tr td", 0), issueId1);
-                AssertUI.TextNotEquals(grid.ElementAt("tbody tr td", 0), issueId2);
-                AssertUI.TextNotEquals(grid.ElementAt("tbody tr td", 0), issueId3);
+                AssertUI.TextNotEquals(browser.ElementAt($"{grid} tbody tr td", 0), issueId1);
+                AssertUI.TextNotEquals(browser.ElementAt($"{grid} tbody tr td", 0), issueId2);
+                AssertUI.TextNotEquals(browser.ElementAt($"{grid} tbody tr td", 0), issueId3);
 
                 // go to previous page
-                pager.ElementAt("li", 1).Single("a").Click().Wait(500);
+                browser.ElementAt($"{pager} li", 1).Single("a").Click().Wait(500);
 
-                grid = browser.Single("next-history-grid", SelectByDataUi);
-                pager = browser.Single("next-history-pager", SelectByDataUi);
-                AssertUI.TextEquals(grid.ElementAt("tbody tr td", 0), issueId3);
+                AssertUI.TextEquals(browser.ElementAt($"{grid} tbody tr td", 0), issueId3);
             });
         }
         private void VerifyPageIsNotThrowingAuthError(IBrowserWrapper browser)

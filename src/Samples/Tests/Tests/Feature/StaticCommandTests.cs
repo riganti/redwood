@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using DotVVM.Samples.Tests.Base;
@@ -878,7 +879,9 @@ namespace DotVVM.Samples.Tests.Feature
             var content = new List<string>();
             foreach (var col in cols)
             {
-                content.Add(cells.ElementAt(col).GetInnerText());
+                var text = cells.ElementAt(col).GetInnerText();
+                text = Regex.Replace(text, "\\s+", " "); // diffrent version of localization libraries can produce different whitespace (space, or no-break space)
+                content.Add(text);
             }
 
             return content;

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DotVVM.Samples.Tests.Base;
 using DotVVM.Testing.Abstractions;
@@ -14,6 +15,9 @@ namespace DotVVM.Samples.Tests.Feature
 {
     public class DateTimeTranslationTests : AppSeleniumTest
     {
+        // different versions of localization libraries may produce different whitespace (no space before AM/PM, no-break spaces, ...)
+        static bool EqualsIgnoreSpace(string a, string b) => Regex.Replace(a, @"\s+", "") == Regex.Replace(b, @"\s+", "");
+
         [Fact]
         public void Feature_DateTime_PropertyTranslations()
         {
@@ -45,10 +49,10 @@ namespace DotVVM.Samples.Tests.Feature
 
                 // try the conversion
                 var localTextBox = browser.Single("input[data-ui=toBrowserLocalTime]");
-                AssertUI.TextEquals(localTextBox, localDateTime);
+                AssertUI.Text(localTextBox, t => EqualsIgnoreSpace(t, localDateTime));
 
                 localTextBox.Clear().SendKeys(localDateTime2).SendEnterKey();
-                AssertUI.TextEquals(textbox, stringDateTime2);
+                AssertUI.Text(textbox, t => EqualsIgnoreSpace(t, stringDateTime2));
 
                 // try the conversion on nullable
                 var localTextBoxNullable = browser.Single("input[data-ui=toBrowserLocalTimeOnNullable]");
@@ -56,7 +60,7 @@ namespace DotVVM.Samples.Tests.Feature
                 AssertUI.TextEquals(localTextBoxNullable, "");
 
                 localTextBoxNullable.Clear().SendKeys(localDateTime2).SendEnterKey();
-                AssertUI.TextEquals(spanNullable, stringDateTime2);
+                AssertUI.Text(spanNullable, t => EqualsIgnoreSpace(t, stringDateTime2));
 
                 // try the null propagation
                 var localTextBoxNullPropagation = browser.Single("input[data-ui=toBrowserLocalTimeNullPropagation]");
@@ -98,7 +102,7 @@ namespace DotVVM.Samples.Tests.Feature
                 textbox.Clear().SendKeys(stringDateTime).SendEnterKey();
 
                 var str = browser.Single("span[data-ui=timeOnlyToString]");
-                AssertUI.TextEquals(str, "3:28:31 PM");
+                AssertUI.Text(str, t => EqualsIgnoreSpace(t, "3:28:31 PM"));
                 var props = browser.Single("span[data-ui=timeOnlyProperties]");
                 AssertUI.TextEquals(props, "15 hours 28 minues 31 seconds and 0 milliseconds");
             });
