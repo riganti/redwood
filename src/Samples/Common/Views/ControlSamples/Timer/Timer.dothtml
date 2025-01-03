@@ -1,0 +1,50 @@
+﻿@viewModel DotVVM.Samples.Common.ViewModels.ControlSamples.Timer.TimerViewModel, DotVVM.Samples.Common
+
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+
+    <h1>Timer</h1>
+
+    <div>
+        <h2>Timer 1 - enabled from the start</h2>
+        <p>
+            Value: <span data-ui="value1">{{value: Value1}}</span>
+        </p>
+        <p>
+            <dot:CheckBox data-ui="enabled1" Checked="{value: Enabled1}" Text="Timer enabled" />
+        </p>
+
+        <dot:Timer Interval="1000" Command="{command: Value1 = Value1 + 1}" Enabled="{value: Enabled1}" />
+    </div>
+
+    <div>
+        <h2>Timer 2 - disabled from the start</h2>
+        <p>
+            Value: <span data-ui="value2">{{value: Value2}}</span>
+        </p>
+        <p>
+            <dot:CheckBox data-ui="enabled2" Checked="{value: Enabled2}" Text="Timer enabled" />
+        </p>
+
+        <dot:Timer Interval="2000" Command="{command: Value2 = Value2 + 1}" Enabled="{value: Enabled2}" />
+    </div>
+
+    <div>
+        <h2>Timer 3 - without Enabled property</h2>
+        <p>
+            Value: <span data-ui="value3">{{value: Value3}}</span>
+        </p>
+
+        <dot:Timer Interval="3000" Command="{command: Value3 = Value3 + 1}" />
+    </div>
+
+</body>
+</html>
+
+
