@@ -14,7 +14,7 @@ namespace DotVVM.Framework.Compilation
         public ImmutableArray<CompilationDiagnosticViewModel> Warnings { get; internal set; } = ImmutableArray<CompilationDiagnosticViewModel>.Empty;
 
         /// <summary>Gets or sets the virtual path to the view.</summary>
-        public string VirtualPath { get; }
+        public string? VirtualPath { get; }
 
         public string? TagName { get; }
         public string? Namespace { get; }
@@ -25,7 +25,7 @@ namespace DotVVM.Framework.Compilation
         public ImmutableArray<string>? DefaultValues { get; }
         public bool? HasParameters { get; }
 
-        public DotHtmlFileInfo(string virtualPath, string? tagName = null, string? nameSpace = null, string? assembly = null, string? tagPrefix = null, string? url = null, string? routeName = null, ImmutableArray<string>? defaultValues = null, bool? hasParameters = null)
+        public DotHtmlFileInfo(string? virtualPath, string? tagName = null, string? nameSpace = null, string? assembly = null, string? tagPrefix = null, string? url = null, string? routeName = null, ImmutableArray<string>? defaultValues = null, bool? hasParameters = null)
         {
             VirtualPath = virtualPath;
             Status = IsDothtmlFile(virtualPath) ? CompilationState.None : CompilationState.NonCompilable;
@@ -40,7 +40,7 @@ namespace DotVVM.Framework.Compilation
             HasParameters = hasParameters;
         }
 
-        private static bool IsDothtmlFile(string virtualPath)
+        private static bool IsDothtmlFile(string? virtualPath)
         {
             return !string.IsNullOrWhiteSpace(virtualPath) &&
                 (

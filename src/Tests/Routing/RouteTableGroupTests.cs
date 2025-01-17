@@ -27,8 +27,8 @@ namespace DotVVM.Framework.Tests.Routing
 
             var group = table.GetGroup("Group");
             var route = group.First();
-            Assert.AreEqual(route.RouteName, "Group_Route");
-            Assert.AreEqual(route.VirtualPath, "PathPrefix/route.dothtml");
+            Assert.AreEqual("Group_Route", route.RouteName);
+            Assert.AreEqual("PathPrefix/route.dothtml", route.VirtualPath);
             Assert.IsTrue(route.IsMatch("UrlPrefix/5/Article/test", out var parameters));
 
             Assert.AreEqual("5", parameters["Id"]);
@@ -40,7 +40,7 @@ namespace DotVVM.Framework.Tests.Routing
         {
             var table = new DotvvmRouteTable(configuration);
             table.AddGroup("Group", "UrlPrefix/{Id}", null, opt => {
-                opt.Add("Default", "", null, null, null, null);
+                opt.Add("Default", "", "route.dothtml", null, null, null);
             });
 
             var group = table.GetGroup("Group");
@@ -56,7 +56,7 @@ namespace DotVVM.Framework.Tests.Routing
         {
             var table = new DotvvmRouteTable(configuration);
             table.AddGroup("Group", "UrlPrefix/{Id}", null, opt => {
-                opt.Add("Route", "Article/{Title}", null, new { Title = "test" }, null, null);
+                opt.Add("Route", "Article/{Title}", "route.dothtml", new { Title = "test" }, null, null);
             });
 
             var group = table.GetGroup("Group");
@@ -74,8 +74,8 @@ namespace DotVVM.Framework.Tests.Routing
         {
             var table = new DotvvmRouteTable(configuration);
             table.AddGroup("Group", "UrlPrefix/{Id}", null, opt => {
-                opt.Add("Route0", "Article0/{Title}", null, null, null, null);
-                opt.Add("Route1", "Article1/{Title}", null, null, null, null);
+                opt.Add("Route0", "Article0/{Title}", "route.dothtml", null, null, null);
+                opt.Add("Route1", "Article1/{Title}", "route.dothtml", null, null, null);
             });
 
             var group = table.GetGroup("Group");
@@ -90,8 +90,8 @@ namespace DotVVM.Framework.Tests.Routing
         {
             var table = new DotvvmRouteTable(configuration);
             table.AddGroup("Group", "UrlPrefix/{Id}", null, opt => {
-                opt.Add("Route0", "Article0/{Title}", null, null, null, null);
-                opt.Add("Route1", "Article1/{Title}", null, null, null, null);
+                opt.Add("Route0", "Article0/{Title}", "route.dothtml", null, null, null);
+                opt.Add("Route1", "Article1/{Title}", "route.dothtml", null, null, null);
             });
 
             var group = table.GetGroup("Group");
@@ -110,11 +110,11 @@ namespace DotVVM.Framework.Tests.Routing
             table.AddGroup("Group1", "UrlPrefix1", null, opt1 => {
                 opt1.AddGroup("Group2", "UrlPrefix2", null, opt2 => {
                     opt2.AddGroup("Group3", "UrlPrefix3", null, opt3 => {
-                        opt3.Add("Route3", "Article3", null, null, null, null);
+                        opt3.Add("Route3", "Article3", "route.dothtml", null, null, null);
                     });
-                    opt2.Add("Route2", "Article2", null, null, null, null);
+                    opt2.Add("Route2", "Article2", "route.dothtml", null, null, null);
                 });
-                opt1.Add("Route1", "Article1", null, null, null, null);
+                opt1.Add("Route1", "Article1", "route.dothtml", null, null, null);
             });
 
             var group = table.GetGroup("Group1");
@@ -181,9 +181,37 @@ namespace DotVVM.Framework.Tests.Routing
 
             var table = new DotvvmRouteTable(configuration);
             table.AddGroup("Group", null, null, opt => {
-                opt.Add("Article", "");
+                opt.Add("Article", "", "");
             }, p => p.GetRequiredService<TestPresenter>());
             Assert.IsInstanceOfType(table.First().GetPresenter(configuration.ServiceProvider), typeof(TestPresenter));
+        }
+
+        [TestMethod]
+        public void RouteTableGroup_Redirections()
+        {
+            var table = new DotvvmRouteTable(configuration);
+            table.AddGroup("Group", "Prefix", "VirtualPathPrefix", opt => {
+                opt.AddUrlRedirection("Url", "", "redirect.dothtml");
+                opt.AddRouteRedirection("Route", "RedirectRoute", "Group_Url");
+                opt.Add("Normal", "Normal", "normal.dothtml");
+            });
+
+            var group = table.GetGroup("Group");
+
+            var urlRedirection = group.ElementAt(0);
+            Assert.AreEqual("Group_Url", urlRedirection.RouteName);
+            Assert.AreEqual("Prefix", urlRedirection.Url);
+            Assert.IsNull(urlRedirection.VirtualPath);
+
+            var routeRedirection = group.ElementAt(1);
+            Assert.AreEqual("Group_Route", routeRedirection.RouteName);
+            Assert.AreEqual("Prefix/RedirectRoute", routeRedirection.Url);
+            Assert.IsNull(routeRedirection.VirtualPath);
+
+            var normalRoute = group.ElementAt(2);
+            Assert.AreEqual("Group_Normal", normalRoute.RouteName);
+            Assert.AreEqual("Prefix/Normal", normalRoute.Url);
+            Assert.AreEqual("VirtualPathPrefix/normal.dothtml", normalRoute.VirtualPath);
         }
     }
 }

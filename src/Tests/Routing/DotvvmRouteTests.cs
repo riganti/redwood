@@ -24,7 +24,7 @@ namespace DotVVM.Framework.Tests.Routing
         public void DotvvmRoute_IsMatch_RouteMustNotStartWithSlash()
         {
             Assert.ThrowsException<ArgumentException>(() => {
-                var route = new DotvvmRoute("/Test", null, null, null, configuration);
+                var route = new DotvvmRoute("/Test", null, "testpage", null, null, configuration);
             });
         }
 
@@ -33,14 +33,14 @@ namespace DotVVM.Framework.Tests.Routing
         public void DotvvmRoute_IsMatch_RouteMustNotEndWithSlash()
         {
             Assert.ThrowsException<ArgumentException>(() => {
-                var route = new DotvvmRoute("Test/", null, null, null, configuration);
+                var route = new DotvvmRoute("Test/", null, "testpage", null, null, configuration);
             });
         }
 
         [TestMethod]
         public void DotvvmRoute_IsMatch_EmptyRouteMatchesEmptyUrl()
         {
-            var route = new DotvvmRoute("", null, null, null, configuration);
+            var route = new DotvvmRoute("", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("", out parameters);
@@ -51,7 +51,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_UrlWithoutParametersExactMatch()
         {
-            var route = new DotvvmRoute("Hello/Test/Page.txt", null, null, null, configuration);
+            var route = new DotvvmRoute("Hello/Test/Page.txt", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Hello/Test/Page.txt", out parameters);
@@ -62,7 +62,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_UrlWithoutParametersNoMatch()
         {
-            var route = new DotvvmRoute("Hello/Test/Page.txt", null, null, null, configuration);
+            var route = new DotvvmRoute("Hello/Test/Page.txt", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Hello/Test/Page", out parameters);
@@ -73,7 +73,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_UrlTwoParametersBothSpecified()
         {
-            var route = new DotvvmRoute("Article/{Id}/{Title}", null, new { Title = "test" }, null, configuration);
+            var route = new DotvvmRoute("Article/{Id}/{Title}", null, "testpage", new { Title = "test" }, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/15/Test-title", out parameters);
@@ -87,7 +87,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_UrlTwoParametersOneSpecifiedOneDefault()
         {
-            var route = new DotvvmRoute("Article/{Id}/{Title}", null, new { Title = "test" }, null, configuration);
+            var route = new DotvvmRoute("Article/{Id}/{Title}", null, "testpage", new { Title = "test" }, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/15", out parameters);
@@ -102,7 +102,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_UrlTwoParametersBothRequired_NoMatchWhenOneSpecified()
         {
-            var route = new DotvvmRoute("Article/{Id}/{Title}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/{Id}/{Title}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/15", out parameters);
@@ -113,7 +113,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_UrlTwoParametersBothRequired_DifferentPart()
         {
-            var route = new DotvvmRoute("Article/id_{Id}/{Title}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/id_{Id}/{Title}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Articles/id_15", out parameters);
@@ -124,7 +124,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_UrlOneParameterRequired_TwoSpecified()
         {
-            var route = new DotvvmRoute("Article/{Id}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/{Id}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/15/test", out parameters);
@@ -135,7 +135,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_UrlTwoParametersBothRequired_BothSpecified()
         {
-            var route = new DotvvmRoute("Article/id_{Id}/{Title}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/id_{Id}/{Title}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/id_15/test", out parameters);
@@ -149,7 +149,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_OneOptionalPrefixedParameter()
         {
-            var route = new DotvvmRoute("{Id?}/Article", null, null, null, configuration);
+            var route = new DotvvmRoute("{Id?}/Article", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article", out parameters);
@@ -161,7 +161,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_OneOptionalSuffixedParameter_WithConstraint()
         {
-            var route = new DotvvmRoute("Article/{Id?:int}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/{Id?:int}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article", out parameters);
@@ -173,7 +173,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_OneOptionalSuffixedParameter_WithConstraint_SlashAtTheEnd()
         {
-            var route = new DotvvmRoute("Article/{Id?:int}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/{Id?:int}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/", out parameters);
@@ -185,7 +185,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_JustOneOptionalParameter()
         {
-            var route = new DotvvmRoute("{Id?}", null, null, null, configuration);
+            var route = new DotvvmRoute("{Id?}", null, "testpage", null, null, configuration);
 
             Assert.IsTrue(route.IsMatch("", out var params1));
             Assert.AreEqual(0, params1.Count);
@@ -198,7 +198,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_JustOneOptionalParameterWithConstraint()
         {
-            var route = new DotvvmRoute("{Id?:int}", null, null, null, configuration);
+            var route = new DotvvmRoute("{Id?:int}", null, "testpage", null, null, configuration);
 
             Assert.IsTrue(route.IsMatch("", out var params1));
             Assert.AreEqual(0, params1.Count);
@@ -213,7 +213,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_JustOneOptionalParameterWithConstraint_DefaultValue()
         {
-            var route = new DotvvmRoute("{Id?:int}", null, new { Id = 0 }, null, configuration);
+            var route = new DotvvmRoute("{Id?:int}", null, "testpage", new { Id = 0 }, null, configuration);
 
             Assert.IsTrue(route.IsMatch("", out var params1));
             Assert.AreEqual(1, params1.Count);
@@ -229,7 +229,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_OneOptionalParameter()
         {
-            var route = new DotvvmRoute("Article/{Id?}/edit", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/{Id?}/edit", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/edit", out parameters);
@@ -241,7 +241,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_OneOptionalParameter_DefaultValue()
         {
-            var route = new DotvvmRoute("Article/{Id?}/edit", null, new { Id = 0 }, null, configuration);
+            var route = new DotvvmRoute("Article/{Id?}/edit", null, "testpage", new { Id = 0 }, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/edit", out parameters);
@@ -254,7 +254,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_IsMatch_TwoParameters_OneOptional_Suffix()
         {
-            var route = new DotvvmRoute("Article/Test/{Id?}/{Id2}/suffix", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test/{Id?}/{Id2}/suffix", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/Test/5/suffix", out parameters);
@@ -272,7 +272,7 @@ namespace DotVVM.Framework.Tests.Routing
                     new LocalizedRouteUrl("cs", "cs"),
                     new LocalizedRouteUrl("cs-CZ", "cs-CZ"),
                     new LocalizedRouteUrl("en", "en")
-                }, "", null, _ => null, configuration);
+                }, "", "testpage", null, _ => null, configuration);
 
                 var result = route.IsMatch("cs-CZ", out var parameters);
                 Assert.IsTrue(result);
@@ -287,7 +287,7 @@ namespace DotVVM.Framework.Tests.Routing
                     new LocalizedRouteUrl("cs", "cs"),
                     new LocalizedRouteUrl("cs-CZ", "cs-CZ"),
                     new LocalizedRouteUrl("en", "en")
-                }, "", null, _ => null, configuration);
+                }, "", "testpage", null, _ => null, configuration);
 
                 var result = route.IsMatch("en", out var parameters);
                 Assert.IsTrue(result);
@@ -302,7 +302,7 @@ namespace DotVVM.Framework.Tests.Routing
                     new LocalizedRouteUrl("cs", "cs"),
                     new LocalizedRouteUrl("cs-CZ", "cs-CZ"),
                     new LocalizedRouteUrl("en", "en")
-                }, "", null, _ => null, configuration);
+                }, "", "testpage", null, _ => null, configuration);
 
                 var result = route.IsMatch("cs", out var parameters);
                 Assert.IsFalse(result);
@@ -317,7 +317,7 @@ namespace DotVVM.Framework.Tests.Routing
                     new LocalizedRouteUrl("cs", "cs"),
                     new LocalizedRouteUrl("cs-CZ", "cs-CZ"),
                     new LocalizedRouteUrl("en", "en")
-                }, "", null, _ => null, configuration);
+                }, "", "testpage", null, _ => null, configuration);
 
                 var result = route.IsPartialMatch("cs", out var matchedRoute, out var parameters);
                 Assert.IsTrue(result);
@@ -336,14 +336,14 @@ namespace DotVVM.Framework.Tests.Routing
             Assert.ThrowsException<ArgumentException>(() => {
                 var route = new LocalizedDotvvmRoute(defaultRoute, new[] {
                     new LocalizedRouteUrl("en", localizedRoute)
-                }, "", null, _ => null, configuration);
+                }, "", "testpage", null, _ => null, configuration);
             });
         }
 
         [TestMethod]
         public void DotvvmRoute_BuildUrl_UrlTwoParameters()
         {
-            var route = new DotvvmRoute("Article/id_{Id}/{Title}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/id_{Id}/{Title}", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { Id = 15, Title = "Test" });
 
@@ -353,7 +353,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_OnePart()
         {
-            var route = new DotvvmRoute("Article", null, null, null, configuration);
+            var route = new DotvvmRoute("Article", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { });
 
@@ -363,7 +363,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_TwoParts()
         {
-            var route = new DotvvmRoute("Article/Test", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { });
 
@@ -373,7 +373,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_TwoParts_OptionalParameter_NoValue()
         {
-            var route = new DotvvmRoute("Article/Test/{Id?}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test/{Id?}", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { });
 
@@ -384,7 +384,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_TwoParts_OptionalParameter_WithValue()
         {
-            var route = new DotvvmRoute("Article/Test/{Id?}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test/{Id?}", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { Id = 5 });
 
@@ -394,7 +394,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_TwoParts_TwoParameters_OneOptional_NoValue()
         {
-            var route = new DotvvmRoute("Article/Test/{Id}/{Id2?}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test/{Id}/{Id2?}", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { Id = 5 });
 
@@ -404,7 +404,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_TwoParts_TwoParameters_OneOptional_NoValue_Suffix()
         {
-            var route = new DotvvmRoute("Article/Test/{Id}/{Id2?}/suffix", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test/{Id}/{Id2?}/suffix", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { Id = 5 });
 
@@ -415,7 +415,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_TwoParts_TwoParameters_OneOptional_WithValue()
         {
-            var route = new DotvvmRoute("Article/Test/{Id}/{Id2?}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test/{Id}/{Id2?}", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { Id = 5, Id2 = "aaa" });
 
@@ -427,7 +427,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_TwoParts_TwoParameters_OneOptional_WithValue_Suffix()
         {
-            var route = new DotvvmRoute("Article/Test/{Id}/{Id2?}/suffix", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test/{Id}/{Id2?}/suffix", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { Id = 5, Id2 = "aaa" });
 
@@ -439,7 +439,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Static_TwoParts_TwoParameters_FirstOptionalOptional_Suffix()
         {
-            var route = new DotvvmRoute("Article/Test/{Id?}/{Id2}/suffix", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/Test/{Id?}/{Id2}/suffix", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { Id2 = "aaa" });
 
@@ -450,7 +450,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_CombineParameters_OneOptional()
         {
-            var route = new DotvvmRoute("Article/{Id?}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/{Id?}", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new Dictionary<string, object>() { { "Id", 5 } }, new { });
 
@@ -460,7 +460,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_ParameterOnly()
         {
-            var route = new DotvvmRoute("{Id?}", null, null, null, configuration);
+            var route = new DotvvmRoute("{Id?}", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { });
 
@@ -470,7 +470,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_OptionalParameter()
         {
-            var route = new DotvvmRoute("myPage/{Id?}/edit", null, null, null, configuration);
+            var route = new DotvvmRoute("myPage/{Id?}/edit", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { });
             var result2 = route.BuildUrl(new Dictionary<string, object> { ["Id"] = null });
@@ -482,7 +482,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_OneOptionalPrefixedParameter()
         {
-            var route = new DotvvmRoute("{Id?}/Article", null, null, null, configuration);
+            var route = new DotvvmRoute("{Id?}/Article", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(new { });
             var result2 = route.BuildUrl(new Dictionary<string, object> { ["Id"] = 0 });
@@ -494,7 +494,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_NullInParameter()
         {
-            var route = new DotvvmRoute("myPage/{Id}/edit", null, null, null, configuration);
+            var route = new DotvvmRoute("myPage/{Id}/edit", null, "testpage", null, null, configuration);
 
             var ex = Assert.ThrowsException<DotvvmRouteException>(() => {
                 route.BuildUrl(new Dictionary<string, object> { ["Id"] = null });
@@ -505,7 +505,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_NoParameter()
         {
-            var route = new DotvvmRoute("RR", null, null, null, configuration);
+            var route = new DotvvmRoute("RR", null, "testpage", null, null, configuration);
 
             var result = route.BuildUrl(null);
 
@@ -517,7 +517,7 @@ namespace DotVVM.Framework.Tests.Routing
         {
             CultureUtils.RunWithCulture("cs-CZ", () =>
             {
-                var route = new DotvvmRoute("RR-{p}", null, null, null, configuration);
+                var route = new DotvvmRoute("RR-{p}", null, "testpage", null, null, configuration);
 
                 var result = route.BuildUrl(new { p = 1.1 });
 
@@ -529,7 +529,7 @@ namespace DotVVM.Framework.Tests.Routing
         public void DotvvmRoute_BuildUrl_UrlEncode()
         {
             CultureUtils.RunWithCulture("cs-CZ", () => {
-                var route = new DotvvmRoute("RR-{p}", null, null, null, configuration);
+                var route = new DotvvmRoute("RR-{p}", null, "testpage", null, null, configuration);
 
                 var result = route.BuildUrl(new { p = 1.1});
 
@@ -542,7 +542,7 @@ namespace DotVVM.Framework.Tests.Routing
         public void DotvvmRoute_BuildUrl_CustomPrimitiveType()
         {
             CultureUtils.RunWithCulture("cs-CZ", () => {
-                var route = new DotvvmRoute("Test/{Id}", null, null, null, configuration);
+                var route = new DotvvmRoute("Test/{Id}", null, "testpage", null, null, configuration);
 
                 var result = route.BuildUrl(new { Id = new DecimalNumber(123.4m) }) + UrlHelper.BuildUrlSuffix(null, new { Id = new DecimalNumber(555.5m) });
                 Assert.AreEqual("~/Test/123%2C4?Id=555%2C5", result);
@@ -554,7 +554,7 @@ namespace DotVVM.Framework.Tests.Routing
         {
             Assert.ThrowsException<ArgumentException>(() => {
 
-                var route = new DotvvmRoute("{Id", null, null, null, configuration);
+                var route = new DotvvmRoute("{Id", null, "testpage", null, null, configuration);
 
                 var result = route.BuildUrl(new { });
             });
@@ -566,7 +566,7 @@ namespace DotVVM.Framework.Tests.Routing
         {
             Assert.ThrowsException<ArgumentException>(() => {
 
-                var route = new DotvvmRoute("{Id:int", null, null, null, configuration);
+                var route = new DotvvmRoute("{Id:int", null, "testpage", null, null, configuration);
 
                 var result = route.BuildUrl(new { });
             });
@@ -575,7 +575,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_Parameter_UrlDecode()
         {
-            var route = new DotvvmRoute("Article/{Title}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/{Title}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/" + Uri.EscapeDataString("x a d # ? %%%%% | ://"), out parameters);
@@ -588,7 +588,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_ParameterConstraint_Int()
         {
-            var route = new DotvvmRoute("Article/id_{Id:int}/{Title}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/id_{Id:int}/{Title}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("Article/id_15/test", out parameters);
@@ -601,7 +601,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_ParameterConstraint_FloatingPoints()
         {
-            var route = new DotvvmRoute("R/{float:float}-{double:double}-{decimal:decimal}", null, null, null, configuration);
+            var route = new DotvvmRoute("R/{float:float}-{double:double}-{decimal:decimal}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             var result = route.IsMatch("R/1.12-1.12-1.12", out parameters);
@@ -616,7 +616,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_ParameterConstraint_Guid()
         {
-            var route = new DotvvmRoute("{guid1:guid}{guid2:guid}{guid3:guid}{guid4:guid}", null, null, null, configuration);
+            var route = new DotvvmRoute("{guid1:guid}{guid2:guid}{guid3:guid}{guid4:guid}", null, "testpage", null, null, configuration);
             var guids = new[]
             {
                 Guid.NewGuid(),
@@ -639,7 +639,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_ParameterConstraint_Max()
         {
-            var route = new DotvvmRoute("{p:max(100)}", null, null, null, configuration);
+            var route = new DotvvmRoute("{p:max(100)}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             Assert.IsFalse(route.IsMatch("101", out parameters));
@@ -654,7 +654,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_ParameterConstraint_Ranges()
         {
-            var route = new DotvvmRoute("{range:range(1, 100.1)}/{max:max(100)}/{min:min(-55)}/{negrange:range(-100, -12)}/{posint:posint}", null, null, null, configuration);
+            var route = new DotvvmRoute("{range:range(1, 100.1)}/{max:max(100)}/{min:min(-55)}/{negrange:range(-100, -12)}/{posint:posint}", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             Assert.IsTrue(route.IsMatch("50/0/0/-50/5", out parameters));
@@ -677,7 +677,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_ParameterConstraint_Bool()
         {
-            var route = new DotvvmRoute("la{bool:bool}eheh", null, null, null, configuration);
+            var route = new DotvvmRoute("la{bool:bool}eheh", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             Assert.IsTrue(route.IsMatch("latrueeheh", out parameters));
@@ -690,7 +690,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_BuildUrl_ParameterConstraintAlpha()
         {
-            var route = new DotvvmRoute("la1{aplha:alpha}7huh", null, null, null, configuration);
+            var route = new DotvvmRoute("la1{aplha:alpha}7huh", null, "testpage", null, null, configuration);
 
             IDictionary<string, object> parameters;
             Assert.IsTrue(route.IsMatch("la1lala7huh", out parameters));
@@ -703,7 +703,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_Performance()
         {
-            var route = new DotvvmRoute("Article/{name}@{domain}/{id:int}", null, null, null, configuration);
+            var route = new DotvvmRoute("Article/{name}@{domain}/{id:int}", null, "testpage", null, null, configuration);
             IDictionary<string, object> parameters;
             Assert.IsFalse(route.IsMatch("Article/f" + new string('@', 2000) + "f/4f", out parameters));
         }
@@ -739,7 +739,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_RegexConstraint()
         {
-            var route = new DotvvmRoute("test/{Name:regex((aa|bb|cc))}", null, null, null, configuration);
+            var route = new DotvvmRoute("test/{Name:regex((aa|bb|cc))}", null, "testpage", null, null, configuration);
             Assert.IsTrue(route.IsMatch("test/aa", out var parameters));
             Assert.IsTrue(route.IsMatch("test/bb", out parameters));
             Assert.IsTrue(route.IsMatch("test/cc", out parameters));
@@ -749,7 +749,7 @@ namespace DotVVM.Framework.Tests.Routing
         [TestMethod]
         public void DotvvmRoute_UrlWithoutTypes()
         {
-            string parse(string url) => new DotvvmRoute(url, null, null, null, configuration).UrlWithoutTypes;
+            string parse(string url) => new DotvvmRoute(url, null, "testpage", null, null, configuration).UrlWithoutTypes;
 
             Assert.AreEqual(parse("test/xx/12"), "test/xx/12");
             Assert.AreEqual(parse("test/{Param}-{PaRAM2}"), "test/{param}-{param2}");

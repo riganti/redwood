@@ -122,7 +122,7 @@ namespace DotVVM.Framework.Compilation
                 var compilationTaskFactory = (DotHtmlFileInfo t) => () => {
                     BuildView(t, forceRecompile, out var masterPage);
                     if (masterPage != null && masterPage.Status == CompilationState.None)
-                        discoveredMasterPages.TryAdd(masterPage.VirtualPath, masterPage);
+                        discoveredMasterPages.TryAdd(masterPage.VirtualPath!, masterPage);
                 };
 
                 var compileTasks = filesToCompile.Select(compilationTaskFactory).ToArray();
@@ -185,9 +185,9 @@ namespace DotVVM.Framework.Compilation
                 {
                     if (forceRecompile)
                         // TODO: next major version - add method to interface
-                        (controlBuilderFactory as DefaultControlBuilderFactory)?.InvalidateCache(file.VirtualPath);
+                        (controlBuilderFactory as DefaultControlBuilderFactory)?.InvalidateCache(file.VirtualPath!);
 
-                    var pageBuilder = controlBuilderFactory.GetControlBuilder(file.VirtualPath);
+                    var pageBuilder = controlBuilderFactory.GetControlBuilder(file.VirtualPath!);
 
                     using var scopedServices = dotvvmConfiguration.ServiceProvider.CreateScope(); // dependencies that are configured as scoped cannot be resolved from root service provider
                     scopedServices.ServiceProvider.GetRequiredService<DotvvmRequestContextStorage>().Context = new ViewCompilationFakeRequestContext(scopedServices.ServiceProvider);

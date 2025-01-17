@@ -63,7 +63,8 @@ namespace DotVVM.Framework.Hosting
         /// </summary>
         public string GetMarkupFileVirtualPath(IDotvvmRequestContext context)
         {
-            return context.Route!.VirtualPath;
+            return context.Route!.VirtualPath
+                ?? throw new Exception($"The route {context.Route.RouteName} must have a non-null virtual path.");
         }
     }
 }

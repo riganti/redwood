@@ -32,7 +32,7 @@ namespace DotVVM.Framework.Routing
         {
             foreach (var route in strategy.GetRoutes())
             {
-                table.Add(route.RouteName, route);
+                table.Add(route);
             }
         }
         /// <summary>
@@ -52,7 +52,7 @@ namespace DotVVM.Framework.Routing
                     invalidRoutes.Add(new DotvvmConfigurationAssertResult<RouteBase>(route, DotvvmConfigurationAssertReason.MissingRouteName));
                 }
 
-                var content = loader.GetMarkup(config, route.VirtualPath);
+                var content = loader.GetMarkup(config, route.VirtualPath!);
                 if (content == null)
                 {
                     invalidRoutes.Add(new DotvvmConfigurationAssertResult<RouteBase>(route, DotvvmConfigurationAssertReason.MissingFile));

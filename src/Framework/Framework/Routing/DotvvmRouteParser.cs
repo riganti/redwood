@@ -16,7 +16,7 @@ namespace DotVVM.Framework.Routing
             this.routeConstraints = routeConstrains;
         }
 
-        public UrlParserResult ParseRouteUrl(string url, IDictionary<string, object?> defaultValues)
+        public UrlParserResult ParseRouteUrl(string url, IReadOnlyDictionary<string, object?> defaultValues)
         {
             if (url.StartsWith("/", StringComparison.Ordinal))
                 throw new ArgumentException("The route URL must not start with '/'!");
@@ -85,7 +85,7 @@ namespace DotVVM.Framework.Routing
             };
         }
 
-        private UrlParameterParserResult ParseParameter(string url, string prefix, ref int index, IDictionary<string, object?> defaultValues)
+        private UrlParameterParserResult ParseParameter(string url, string prefix, ref int index, IReadOnlyDictionary<string, object?> defaultValues)
         {
             // find the end of the route parameter name
             var startIndex = index;

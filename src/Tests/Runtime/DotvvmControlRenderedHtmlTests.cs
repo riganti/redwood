@@ -81,7 +81,7 @@ namespace DotVVM.Framework.Tests.Runtime
                 routeLink.SetValue(Internal.IsSpaPageProperty, true);
 
                 configuration = DotvvmTestHelper.CreateConfiguration();
-                configuration.RouteTable.Add("TestRoute", "TestRoute");
+                configuration.RouteTable.Add("TestRoute", "TestRoute", "");
                 configuration.Freeze();
                 return routeLink;
             }
