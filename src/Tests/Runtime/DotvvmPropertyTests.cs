@@ -426,5 +426,39 @@ namespace DotVVM.Framework.Tests.Runtime
                 }
             }
         }
+
+        [TestMethod]
+        [DataRow(0)]
+        [DataRow(1)]
+        [DataRow(2)]
+        public void DotvvmProperty_VirtualDictionary_Append(int testClone)
+        {
+            var control = new HtmlGenericControl("div");
+
+            foreach (var i in Enumerable.Range(0, 50))
+            {
+                control.Attributes.Set($"data-{i}", i);
+
+                if (testClone > 0)
+                {
+                    var clone = (HtmlGenericControl)control.CloneControl();
+                    if (testClone == 2)
+                        (control, clone) = (clone, control);
+
+                    clone.Attributes.Set("something-else", "abc");
+                    Assert.AreEqual("abc", clone.Attributes["something-else"]);
+                    clone.Attributes.Set("data-5", -1);
+                    Assert.AreEqual(-1, clone.Attributes["data-5"]);
+                }
+
+                Assert.AreEqual(i + 1, control.properties.Count());
+                Assert.AreEqual(i + 1, control.Attributes.Count);
+                Assert.IsTrue(control.Attributes.ContainsKey("data-" + i.ToString()));
+                Assert.IsFalse(control.Attributes.ContainsKey("something-else"));
+                Assert.AreEqual(i, control.Attributes["data-" + i.ToString()]);
+
+                XAssert.Equal(Enumerable.Range(0, i+1).Cast<object>(), control.Attributes.Values);
+            }
+        }
     }
 }

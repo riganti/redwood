@@ -51,6 +51,9 @@ namespace DotVVM.Framework.Binding
         public DotvvmPropertyGroup? PropertyGroupInstance => !IsPropertyGroup ? null : DotvvmPropertyIdAssignment.GetPropertyGroup(GroupId);
         public string? GroupMemberName => !IsPropertyGroup ? null : DotvvmPropertyIdAssignment.GetGroupMemberName(MemberId);
 
+        public Type PropertyType => IsPropertyGroup ? PropertyGroupInstance.PropertyType : PropertyInstance.PropertyType;
+        public Type DeclaringType => IsPropertyGroup ? PropertyGroupInstance.DeclaringType : DotvvmPropertyIdAssignment.GetControlType(TypeId);
+
         public bool IsInPropertyGroup(ushort id) => (this.Id >> 16) == ((uint)id | 0x80_00u);
 
         public static DotvvmPropertyId CreatePropertyGroupId(ushort groupId, ushort memberId) => new DotvvmPropertyId((ushort)(groupId | 0x80_00), memberId);
@@ -65,7 +68,18 @@ namespace DotVVM.Framework.Binding
         public static bool operator ==(DotvvmPropertyId left, DotvvmPropertyId right) => left.Equals(right);
         public static bool operator !=(DotvvmPropertyId left, DotvvmPropertyId right) => !left.Equals(right);
 
-        public override string ToString() => $"PropId={Id}";
+        public override string ToString()
+        {
+            if (IsPropertyGroup)
+            {
+                var pg = PropertyGroupInstance;
+                return $"[{Id:x8}]{pg.DeclaringType.Name}.{pg.Name}:{GroupMemberName}";
+            }
+            else
+            {
+                return $"[{Id:x8}]{PropertyInstance.FullName}";
+            }
+        }
         public int CompareTo(DotvvmPropertyId other) => Id.CompareTo(other.Id);
     }
 
@@ -259,6 +273,12 @@ namespace DotVVM.Framework.Binding
 #endregion
 
 #region Registration
+        public static Type GetControlType(ushort id)
+        {
+            if (id == 0 || id >= controls.Length)
+                throw new ArgumentOutOfRangeException(nameof(id), id, "Control type ID is invalid.");
+            return controls[id].controlType;
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ushort RegisterType(Type type)
         {

@@ -188,41 +188,35 @@ namespace DotVVM.Framework.Compilation.ViewCompiler
         /// <summary> Set DotVVM properties as array of keys and array of values </summary>
         private bool TryEmitPerfectHashAssignment(ParameterExpression control, List<(DotvvmProperty prop, Expression value)> properties)
         {
-            return false;
-            if (properties.Count > 50)
+            if (properties.Count > PropertyImmutableHashtable.MaxArrayTableSize)
             {
                 return false;
             }
 
-            try
+            var (_, keys, values) = PropertyImmutableHashtable.CreateTableWithValues<Expression>(properties.Select(p => p.prop.Id).ToArray(), properties.Select(p => p.value).ToArray());
+
+            Expression valueExpr;
+            bool ownsValues;
+            if (TryCreateArrayOfConstants(values, out var invertedValues))
             {
-                var (flags, keys, values) = PropertyImmutableHashtable.CreateTableWithValues<Expression>(properties.Select(p => p.prop.Id).ToArray(), properties.Select(p => p.value).ToArray());
-
-                Expression valueExpr;
-                if (TryCreateArrayOfConstants(values, out var invertedValues))
-                {
-                    valueExpr = EmitValue(invertedValues);
-                }
-                else
-                {
-                    valueExpr = EmitCreateArray(
-                        typeof(object),
-                        values.Select(v => v ?? EmitValue(null))
-                    );
-                    flags |= 1u << 31; // owns values flag
-                }
-
-                var keyExpr = EmitValue(keys);
-
-                // PropertyImmutableHashtable.SetValuesToDotvvmControl(control, keys, values, hashSeed)
-                var magicSetValueCall = Expression.Call(typeof(PropertyImmutableHashtable), nameof(PropertyImmutableHashtable.SetValuesToDotvvmControl), emptyTypeArguments, Expression.Convert(control, typeof(DotvvmBindableObject)), keyExpr, valueExpr, EmitValue(flags));
-
-                EmitStatement(magicSetValueCall);
+                valueExpr = EmitValue(invertedValues);
+                ownsValues = false;
             }
-            catch (PropertyImmutableHashtable.CannotMakeHashtableException)
+            else
             {
-                return false;
+                valueExpr = EmitCreateArray(
+                    typeof(object),
+                    values.Select(v => v ?? EmitValue(null))
+                );
+                ownsValues = true;
             }
+
+            var keyExpr = EmitValue(keys);
+
+            // PropertyImmutableHashtable.SetValuesToDotvvmControl(control, keys, values, hashSeed)
+            var magicSetValueCall = Expression.Call(typeof(PropertyImmutableHashtable), nameof(PropertyImmutableHashtable.SetValuesToDotvvmControl), emptyTypeArguments, Expression.Convert(control, typeof(DotvvmBindableObject)), keyExpr, valueExpr, EmitValue(false), EmitValue(ownsValues));
+
+            EmitStatement(magicSetValueCall);
             return true;
         }
 
@@ -258,7 +252,6 @@ namespace DotVVM.Framework.Compilation.ViewCompiler
             }
             else
             {
-                throw new Exception("kokoooot");
                 var variable = Expression.Parameter(typeof(Dictionary<DotvvmPropertyId, object?>), "props_" + control.Name);
 
                 // var dict = new Dictionary<DotvvmPropertyId, object?>(constants);

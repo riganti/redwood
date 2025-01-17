@@ -446,7 +446,7 @@ namespace DotVVM.Framework.Controls
         protected internal virtual DotvvmBindableObject CloneControl()
         {
             var newThis = (DotvvmBindableObject)this.MemberwiseClone();
-            this.properties.CloneInto(ref newThis.properties);
+            this.properties.CloneInto(ref newThis.properties, newThis);
             return newThis;
         }
 

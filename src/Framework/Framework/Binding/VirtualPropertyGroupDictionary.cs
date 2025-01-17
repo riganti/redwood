@@ -9,6 +9,7 @@ using System.Collections;
 using DotVVM.Framework.Binding.Expressions;
 using DotVVM.Framework.Utils;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Intrinsics;
 
 namespace DotVVM.Framework.Binding
 {
@@ -189,7 +190,21 @@ namespace DotVVM.Framework.Binding
         }
         public static IDictionary<string, TValue> CreateValueDictionary(DotvvmBindableObject control, DotvvmPropertyGroup group)
         {
-            var result = new Dictionary<string, TValue>();
+            Dictionary<string, TValue> result;
+#if NET8_0_OR_GREATER
+            // don't bother counting without vector instructions
+            if (Vector256.IsHardwareAccelerated)
+            {
+                var count = control.properties.CountPropertyGroup(group.Id);
+                result = new(count);
+                if (count == 0)
+                    return result;
+            }
+            else
+                result = new();
+#else
+            result = new();
+#endif
             foreach (var (p, valueRaw) in control.properties)
             {
                 if (p.IsInPropertyGroup(group.Id))
@@ -207,7 +222,21 @@ namespace DotVVM.Framework.Binding
 
         public static IDictionary<string, ValueOrBinding<TValue>> CreatePropertyDictionary(DotvvmBindableObject control, DotvvmPropertyGroup group)
         {
-            var result = new Dictionary<string, ValueOrBinding<TValue>>();
+            Dictionary<string, ValueOrBinding<TValue>> result;
+#if NET8_0_OR_GREATER
+            // don't bother counting without vector instructions
+            if (Vector256.IsHardwareAccelerated)
+            {
+                var count = control.properties.CountPropertyGroup(group.Id);
+                result = new(count);
+                if (count == 0)
+                    return result;
+            }
+            else
+                result = new();
+#else
+            result = new();
+#endif
             foreach (var (p, valRaw) in control.properties)
             {
                 if (p.IsInPropertyGroup(group.Id))

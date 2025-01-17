@@ -1,91 +1,173 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using DotVVM.Framework.Binding;
+using DotVVM.Framework.Binding.Expressions;
 using DotVVM.Framework.Compilation.ControlTree;
 using DotVVM.Framework.Utils;
+using Impl = DotVVM.Framework.Controls.PropertyImmutableHashtable;
 
 namespace DotVVM.Framework.Controls
 {
-    [StructLayout(LayoutKind.Explicit)]
     internal struct DotvvmControlProperties : IEnumerable<KeyValuePair<DotvvmPropertyId, object?>>
     {
         // There are 3 possible states of this structure:
-        // 1. keys == values == null --> it is empty
-        // 2. keys == null & values is Dictionary<DotvvmPropertyId, object> --> it falls back to traditional mutable property dictionary
-        // 3. keys is DotvvmPropertyId[] & values is object[] --> read-only perfect 2-slot hashing
-        [FieldOffset(0)]
+        // 1. Empty -> keys == values == null
+        // 2. Dictinary -> keys == null & values is Dictionary<DotvvmPropertyId, object> --> it falls back to traditional mutable property dictionary
+        // 3. Array8 or Array16 -> keys is DotvvmPropertyId[] & values is object[] -- small linear search array
+
+        // Note about unsafe code:
+        // There is always the possibility that the structure may get into an invalid state, for example due to multithreded writes.
+        // That is obviously not supported and it's a user error, and crashes are expected, but we want to avoid critical security issues like RCE.
+        // The idea is that "reading random memory is OK-ish, writing is not", so we insert runtime type checks
+        // to the places where this could happen:
+        // * we write into keys, but it has insufficient length (8 instead of expected 16)
+        // * we write into values, - it has insufficient length
+        //                         - it is of different type (array vs dictionary)
+        // * we return an invalid object reference and the client writes into it
+
+        private const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining;
+        private const MethodImplOptions NoInlining = MethodImplOptions.NoInlining;
+
+
         private DotvvmPropertyId[]? keys;
 
-        [FieldOffset(8)]
-        private object? values;
+        private object? values; // either object?[] or Dictionary<DotvvmPropertyId, object?>
 
-        [FieldOffset(8)]
-        private object?[] valuesAsArray;
+        private TableState state;
 
-        [FieldOffset(8)]
-        private Dictionary<DotvvmPropertyId, object?> valuesAsDictionary;
+        /// If the keys array is owned by this structure and can be modified. Not used in the dictionary mode.
+        private bool ownsKeys;
+        /// If the values array or the values Dictionary is owned by this structure and can be modified.
+        private bool ownsValues;
 
-        /// <summary>
-        /// flags >> 31: 1bit - ownsValues
-        /// flags >> 30: 1bit - ownsKeys
-        /// flags >> 0: 30bits - hashSeed
-        /// </summary>
-        [FieldOffset(16)]
-        private uint flags;
-        private uint hashSeed
+        private readonly bool IsArrayState => ((byte)state | 1) == 3; // state == TableState.Array8 || state == TableState.Array16;
+
+        
+        private object?[] valuesAsArray
         {
-            readonly get => flags & 0x3F_FF_FF_FF;
-            set => flags = (flags & ~0x3F_FF_FF_FFu) | value;
+            [MethodImpl(Inline)]
+            readonly get
+            {
+                var value = this.values;
+                Impl.Assert(value!.GetType() == typeof(object[])); // safety runtime check
+                return Unsafe.As<object?[]>(value);
+            }
+            [MethodImpl(Inline)]
+            set => this.values = value;
         }
-        private bool ownsKeys
+        private readonly object?[]? valuesAsArrayUnsafe
         {
-            readonly get => ((flags >> 30) & 1) != 0;
-            set => flags = (flags & ~(1u << 30)) | ((uint)BoolToInt(value) << 30);
-        }
-        private bool ownsValues
-        {
-            readonly get => ((flags >> 31) & 1) != 0;
-            set => flags = (flags & ~(1u << 31)) | ((uint)BoolToInt(value) << 31);
+            [MethodImpl(Inline)]
+            get => Unsafe.As<object?[]>(values);
         }
 
-        public void AssignBulk(DotvvmPropertyId[] keys, object?[] values, uint flags)
+        private Dictionary<DotvvmPropertyId, object?> valuesAsDictionary
         {
-            // The explicit layout is quite likely to mess up with array covariance, just make sure we don't encounter that
+            [MethodImpl(Inline)]
+            readonly get
+            {
+                var value = this.values;
+                Impl.Assert(value!.GetType() == typeof(Dictionary<DotvvmPropertyId, object?>)); // safety runtime check
+                return Unsafe.As<Dictionary<DotvvmPropertyId, object?>>(value);
+            }
+            [MethodImpl(Inline)]
+            set => this.values = value;
+        }
+        private readonly Dictionary<DotvvmPropertyId, object?>? valuesAsDictionaryUnsafe
+        {
+            [MethodImpl(Inline)]
+            get => Unsafe.As<Dictionary<DotvvmPropertyId, object?>>(values);
+        }
+
+        [Conditional("DEBUG")]
+        private readonly void CheckInvariant()
+        {
+            switch (state)
+            {
+                case TableState.Empty:
+                    Debug.Assert(keys is null && values is null);
+                    break;
+                case TableState.Array8:
+                case TableState.Array16:
+                    Debug.Assert(keys is {});
+                    Debug.Assert(values is object[]);
+                    Debug.Assert(keys.Length == valuesAsArray.Length);
+                    Debug.Assert(keys.Length == (state == TableState.Array8 ? 8 : 16));
+                    for (int i = keys.Length - 1; i >= 0 ; i--)
+                    {
+                        var value = valuesAsArray[i];
+                        var p = keys[i];
+                        Debug.Assert(p.Id == 0 || keys.AsSpan().IndexOf(p) == i, $"Duplicate property {p} at index {i} and {keys.AsSpan().IndexOf(keys[i])}");
+                        if (p.Id != 0)
+                        {
+                            // TODO: check currently causes issues in unrelated code
+                            // var propType = p.PropertyType;
+                            // Debug.Assert(value is null || value is IBinding || propType.IsInstanceOfType(value), $"Property {p} has value {value} of type {value?.GetType()} which is not assignable to {propType}");
+                        }
+                        else
+                        {
+                            Debug.Assert(valuesAsArray[i] is null, $"Zero property id at index {i} has non-null value: {valuesAsArray[i]}");
+                        }
+                    }
+                    break;
+                case TableState.Dictinary:
+                    Debug.Assert(keys is null);
+                    Debug.Assert(values is Dictionary<DotvvmPropertyId, object>);
+                    break;
+                default:
+                    Impl.Fail();
+                    break;
+            }
+        }
+
+        public void AssignBulk(DotvvmPropertyId[] keys, object?[] values, bool ownsKeys, bool ownsValues)
+        {
+            CheckInvariant();
+            // The our unsafe memory accesses are quite likely to mess up with array covariance, just make sure we don't encounter that
             Debug.Assert(values.GetType() == typeof(object[]));
             Debug.Assert(keys.GetType() == typeof(DotvvmPropertyId[]));
             Debug.Assert(keys.Length == values.Length);
             if (this.values == null || Object.ReferenceEquals(this.keys, keys))
             {
+                // empty -> fast assignment
                 this.valuesAsArray = values;
                 this.keys = keys;
-                this.flags = flags;
+                this.state = keys.Length switch {
+                    8 => TableState.Array8,
+                    16 => TableState.Array16,
+                    _ => throw new NotSupportedException("Only 8 and 16 elements are supported")
+                };
+                this.ownsKeys = ownsKeys;
+                this.ownsValues = ownsValues;
             }
             else
             {
-                // we can just to check if all current properties are in the proposed set
-                // if they are not we will have to copy it
-
                 for (int i = 0; i < keys.Length; i++)
                 {
                     if (keys[i].Id != 0)
                         this.Set(keys[i]!, values[i]);
                 }
             }
+            CheckInvariant();
         }
 
         public void AssignBulk(Dictionary<DotvvmPropertyId, object?> values, bool owns)
         {
+            CheckInvariant();
             if (this.values == null || object.ReferenceEquals(this.values, values))
             {
                 this.keys = null;
                 this.valuesAsDictionary = values;
-                this.flags = (uint)BoolToInt(owns) << 31;
+                this.ownsValues = owns;
+                this.state = TableState.Dictinary;
             }
             else
             {
@@ -97,7 +179,7 @@ namespace DotVVM.Framework.Controls
                     }
                     this.values = values;
                     this.keys = null;
-                    this.flags = 1u << 31;
+                    this.ownsValues = true;
                 }
                 else
                 {
@@ -111,34 +193,58 @@ namespace DotVVM.Framework.Controls
 
         public void ClearEverything()
         {
+            CheckInvariant();
             values = null;
             keys = null;
+            state = TableState.Empty;
         }
 
         public readonly bool Contains(DotvvmProperty p) => Contains(p.Id);
         public readonly bool Contains(DotvvmPropertyId p)
         {
-            if (keys is {})
+            CheckInvariant();
+            if (state == TableState.Array8)
             {
-                Debug.Assert(values is object[]);
-                Debug.Assert(keys is DotvvmPropertyId[]);
-                return PropertyImmutableHashtable.ContainsKey(this.keys, this.hashSeed, p);
+                Debug.Assert(values!.GetType() == typeof(object[]));
+                Debug.Assert(keys is {});
+                return Impl.ContainsKey8(this.keys, p);
             }
-            else if (values is null) { return false; }
-            else
+            return ContainsOutlined(p);
+        }
+
+        private readonly bool ContainsOutlined(DotvvmPropertyId p) // doesn't need to be inlined
+        {
+            if (state == TableState.Empty)
+                return false;
+            if (state == TableState.Array16)
             {
-                Debug.Assert(values is Dictionary<DotvvmPropertyId, object>);
-                return valuesAsDictionary.ContainsKey(p);
+                return Impl.ContainsKey16(this.keys!, p);
             }
+            if (state == TableState.Dictinary)
+            {
+                return valuesAsDictionary!.ContainsKey(p);
+            }
+            return Impl.Fail<bool>();
         }
 
         public readonly bool ContainsPropertyGroup(DotvvmPropertyGroup group) => ContainsPropertyGroup(group.Id);
         public readonly bool ContainsPropertyGroup(ushort groupId)
         {
-
-            if (keys is {})
+            CheckInvariant();
+            if (state == TableState.Array8)
             {
-                return PropertyImmutableHashtable.ContainsPropertyGroup(this.keys, groupId);
+                return Impl.ContainsPropertyGroup(this.keys!, groupId);
+            }
+            return ContainsPropertyGroupOutlined(groupId);
+        }
+
+        private readonly bool ContainsPropertyGroupOutlined(ushort groupId)
+        {
+            if (state == TableState.Empty)
+                return false;
+            if (state == TableState.Array16)
+            {
+                return Impl.ContainsPropertyGroup(this.keys!, groupId);
             }
             else if (values is null) return false;
             else
@@ -151,40 +257,55 @@ namespace DotVVM.Framework.Controls
                 }
                 return false;
             }
+
         }
 
         public readonly int CountPropertyGroup(DotvvmPropertyGroup group) => CountPropertyGroup(group.Id);
         public readonly int CountPropertyGroup(ushort groupId)
         {
-            if (keys is {})
+            CheckInvariant();
+            if (state == TableState.Array8)
             {
-                return PropertyImmutableHashtable.CountPropertyGroup(this.keys, groupId);
+                return Impl.CountPropertyGroup8(this.keys, groupId);
             }
-            else if (values is null) return 0;
-            else
+            return CountPropertyGroupOutlined(groupId);
+        }
+
+        private readonly int CountPropertyGroupOutlined(ushort groupId)
+        {
+            switch (state)
             {
-                Debug.Assert(values is Dictionary<DotvvmPropertyId, object>);
-                int count = 0;
-                foreach (var key in valuesAsDictionary.Keys)
+                case TableState.Empty:
+                    return 0;
+                case TableState.Array16:
+                    return Impl.CountPropertyGroup(this.keys!, groupId);
+                case TableState.Dictinary:
                 {
-                    if (key.IsInPropertyGroup(groupId))
-                        count++;
+                    int count = 0;
+                    foreach (var key in valuesAsDictionary.Keys)
+                    {
+                        if (key.IsInPropertyGroup(groupId))
+                            count++;
+                    }
+                    return count;
                 }
-                return count;
+                default:
+                    return Impl.Fail<int>();
             }
         }
 
+        [MethodImpl(Inline)]
         public readonly bool TryGet(DotvvmProperty p, out object? value) => TryGet(p.Id, out value);
+        [MethodImpl(Inline)]
         public readonly bool TryGet(DotvvmPropertyId p, out object? value)
         {
-            if (keys != null)
+            CheckInvariant();
+            if (state == TableState.Array8)
             {
-                Debug.Assert(values is object[]);
-                Debug.Assert(keys is not null);
-                var index = PropertyImmutableHashtable.FindSlot(this.keys, this.hashSeed, p);
+                var index = Impl.FindSlot8(this.keys!, p);
                 if (index >= 0)
                 {
-                    value = this.valuesAsArray[index];
+                    value = valuesAsArray[index];
                     return true;
                 }
                 else
@@ -193,13 +314,34 @@ namespace DotVVM.Framework.Controls
                     return false;
                 }
             }
-
-            else if (values == null) { value = null; return false; }
-
-            else
+            return TryGetOutlined(p, out value);
+        }
+        private readonly bool TryGetOutlined(DotvvmPropertyId p, out object? value)
+        {
+            switch (state)
             {
-                Debug.Assert(values is Dictionary<DotvvmPropertyId, object>);
-                return valuesAsDictionary.TryGetValue(p, out value);
+                case TableState.Empty:
+                    value = null;
+                    return false;
+                case TableState.Array16:
+                {
+                    var index = Impl.FindSlot16(this.keys!, p);
+                    if (index >= 0)
+                    {
+                        value = valuesAsArray[index];
+                        return true;
+                    }
+                    else
+                    {
+                        value = null;
+                        return false;
+                    }
+                }
+                case TableState.Dictinary:
+                    return valuesAsDictionary.TryGetValue(p, out value);
+                default:
+                    value = null;
+                    return Impl.Fail<bool>();
             }
         }
 
@@ -207,55 +349,83 @@ namespace DotVVM.Framework.Controls
         public readonly object? GetOrThrow(DotvvmPropertyId p)
         {
             if (this.TryGet(p, out var x)) return x;
-            throw new KeyNotFoundException();
+            return ThrowKeyNotFound(p);
         }
+        [MethodImpl(NoInlining), DoesNotReturn]
+        private readonly object? ThrowKeyNotFound(DotvvmPropertyId p) => throw new KeyNotFoundException($"Property {p} was not found.");
 
+        [MethodImpl(Inline)]
         public void Set(DotvvmProperty p, object? value) => Set(p.Id, value);
+        // not necessarily great for inlining
         public void Set(DotvvmPropertyId p, object? value)
         {
-            if (p.MemberId == 0)
-                throw new ArgumentException("Invalid (unitialized) property id cannot be set into the DotvvmControlProperties dictionary.", nameof(p));
+            CheckInvariant();
+            if (p.MemberId == 0) ThrowZeroPropertyId();
 
-            if (keys != null)
+            if (state == TableState.Array8)
             {
-                Debug.Assert(values is object[]);
-                Debug.Assert(keys is DotvvmPropertyId[]);
-                var slot = PropertyImmutableHashtable.FindSlotOrFree(keys, hashSeed, p, out var exists);
+                var keys = this.keys!;
+                var slot = Impl.FindSlotOrFree8(keys, p, out var exists);
                 if (slot >= 0)
                 {
                     if (!exists)
                     {
-                        OwnKeys();
+                        if (!ownsKeys)
+                            keys = CloneKeys();
+                        // arrays are always size >= 8
+                        Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(keys), slot) = p;
+                    }
+                    this.OwnValues();
+                    Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(this.valuesAsArray), slot) = value; // avoid covariance check
+                    CheckInvariant();
+                    Debug.Assert(GetOrThrow(p) == value, $"{p} was not set to {value}.");
+                    return;
+                }
+            }
+
+            SetOutlined(p, value);
+        }
+        private void SetOutlined(DotvvmPropertyId p, object? value)
+        {
+            TailRecursion:
+
+            var keys = this.keys;
+            if (keys is {})
+            {
+                Debug.Assert(values is object[]);
+                var slot = state == TableState.Array8
+                                ? Impl.FindSlotOrFree8(keys, p, out var exists)
+                                : Impl.FindSlotOrFree16(keys, p, out exists);
+                if (slot >= 0)
+                {
+                    Debug.Assert(slot < keys.Length && slot < valuesAsArray.Length, $"Slot {slot} is out of range for keys {keys.Length} and values {valuesAsArray.Length} (prop={p}, value={value})");
+                    if (!exists)
+                    {
+                        if (!this.ownsKeys)
+                            keys = CloneKeys();
                         OwnValues();
                         keys[slot] = p;
                         valuesAsArray[slot] = value;
                     }
-                    else if (Object.ReferenceEquals(valuesAsArray[slot], value))
+                    else if (Object.ReferenceEquals(valuesAsArrayUnsafe![slot], value))
                     {
                         // no-op, we would be changing it to the same value
                     }
                     else
                     {
-                        this.OwnValues();
+                        OwnValues();
                         valuesAsArray[slot] = value;
                     }
                 }
                 else
                 {
-                    SwitchToDictionary();
-                    Debug.Assert(values is Dictionary<DotvvmPropertyId, object?>);
-                    valuesAsDictionary[p] = value;
-                    keys = null;
+                    IncreaseSize();
+                    goto TailRecursion;
                 }
             }
             else if (values == null)
             {
-                Debug.Assert(keys == null);
-                this.flags = 0b11u << 30;
-                this.keys = new DotvvmPropertyId[PropertyImmutableHashtable.AdhocTableSize];
-                this.keys[0] = p;
-                this.valuesAsArray = new object?[PropertyImmutableHashtable.AdhocTableSize];
-                this.valuesAsArray[0] = value;
+                SetEmptyToSingle(p, value);
             }
             else
             {
@@ -263,59 +433,97 @@ namespace DotVVM.Framework.Controls
                 OwnValues();
                 valuesAsDictionary[p] = value;
             }
+            Debug.Assert(GetOrThrow(p) == value, $"{p} was not set to {value}.");
+            CheckInvariant();
         }
 
+        [MethodImpl(NoInlining), DoesNotReturn]
+        private static void ThrowZeroPropertyId() => throw new ArgumentException("Invalid (unitialized) property id cannot be set into the DotvvmControlProperties dictionary.", "p");
+
         /// <summary> Tries to set value into the dictionary without overwriting anything. </summary>
+        /// <returns> True if the value was added, false if the key was already present with a different value. </returns>
         public bool TryAdd(DotvvmProperty p, object? value) => TryAdd(p.Id, value);
 
         /// <summary> Tries to set value into the dictionary without overwriting anything. </summary>
+        /// <returns> True if the value was added, false if the key was already present with a different value. </returns>
         public bool TryAdd(DotvvmPropertyId p, object? value)
         {
+            CheckInvariant();
+            if (p.MemberId == 0) ThrowZeroPropertyId();
+
+            if (state == TableState.Array8)
+            {
+                Debug.Assert(values!.GetType() == typeof(object[]));
+                Debug.Assert(keys is {});
+                var slot = Impl.FindSlotOrFree8(this.keys, p, out var exists);
+                if (slot >= 0)
+                {
+                    if (exists)
+                    {
+                        return Object.ReferenceEquals(valuesAsArrayUnsafe![slot], value);
+                    }
+                    OwnValues();
+                    OwnKeys();
+                    // arrays are always length >= 8
+                    Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(keys), slot) = p;
+                    Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(valuesAsArray), slot) = value; // avoid covariance check
+                    CheckInvariant();
+                    Debug.Assert(GetOrThrow(p) == value, $"{p} was not set to {value}.");
+                    return true;
+                }
+            }
+            return TryAddOulined(p, value);
+        }
+
+        private bool TryAddOulined(DotvvmPropertyId p, object? value)
+        {
+
+            TailRecursion:
+
+            var keys = this.keys;
             if (keys != null)
             {
                 Debug.Assert(this.values is object[]);
                 Debug.Assert(keys is DotvvmPropertyId[]);
-                var slot = PropertyImmutableHashtable.FindSlotOrFree(keys, this.hashSeed, p, out var exists);
+                var slot = state == TableState.Array8
+                                ? Impl.FindSlotOrFree8(keys, p, out var exists)
+                                : Impl.FindSlotOrFree16(keys, p, out exists);
                 if (slot >= 0)
                 {
                     if (exists)
                     {
                         // value already exists
-                        return Object.ReferenceEquals(valuesAsArray[slot], value);
+                        return Object.ReferenceEquals(valuesAsArrayUnsafe![slot], value);
                     }
                     else
                     {
-                        OwnKeys();
+                        if (!this.ownsKeys)
+                            keys = CloneKeys();
                         OwnValues();
-                        // set the value
                         keys[slot] = p;
-                        valuesAsArray[slot] = value;
+                        var valuesAsArray = this.valuesAsArray;
+                        Impl.Assert(valuesAsArray.Length > slot);
+                        Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(valuesAsArray), slot) = value; // avoid covariance check
+                        CheckInvariant();
+                        Debug.Assert(GetOrThrow(p) == value, $"{p} was not set to {value}.");
                         return true;
                     }
                 }
                 else
                 {
-                    // no free slots, move to standard Dictionary
-                    SwitchToDictionary();
-                    this.valuesAsDictionary.Add(p, value);
-                    return true;
+                    IncreaseSize();
+                    goto TailRecursion;
                 }
             }
             if (values == null)
             {
-                // empty dict -> initialize 8-slot array
-                Debug.Assert(keys == null);
-                this.flags = 0b11u << 30;
-                this.keys = new DotvvmPropertyId[PropertyImmutableHashtable.AdhocTableSize];
-                this.keys[0] = p;
-                this.valuesAsArray = new object?[PropertyImmutableHashtable.AdhocTableSize];
-                this.valuesAsArray[0] = value;
+                SetEmptyToSingle(p, value);
                 return true;
             }
             else
             {
                 // System.Dictionary backend
-                Debug.Assert(values is Dictionary<DotvvmPropertyId, object?>);
+                var valuesAsDictionary = this.valuesAsDictionary;
 #if CSharp8Polyfill
                 if (valuesAsDictionary.TryGetValue(p, out var existingValue))
                     return Object.ReferenceEquals(existingValue, value);
@@ -332,14 +540,31 @@ namespace DotVVM.Framework.Controls
             }
         }
 
+        private void SetEmptyToSingle(DotvvmPropertyId p, object? value)
+        {
+            Debug.Assert(this.keys == null);
+            Debug.Assert(this.values == null);
+            Debug.Assert(this.state == TableState.Empty);
+            var newKeys = new DotvvmPropertyId[Impl.AdhocTableSize];
+            newKeys[0] = p;
+            var newValues = new object?[Impl.AdhocTableSize];
+            newValues[0] = value;
 
+            this.keys = newKeys;
+            this.values = newValues;
+            this.ownsKeys = this.ownsValues = true;
+            this.state = TableState.Array8;
+            CheckInvariant();
+        }
+
+        [MethodImpl(Inline)]
         public readonly DotvvmControlPropertyIdEnumerator GetEnumerator()
         {
+            CheckInvariant();
             if (keys != null) return new DotvvmControlPropertyIdEnumerator(keys, valuesAsArray);
 
             if (values == null) return EmptyEnumerator;
 
-            Debug.Assert(values is Dictionary<DotvvmPropertyId, object>);
             return new DotvvmControlPropertyIdEnumerator(valuesAsDictionary.GetEnumerator());
         }
 
@@ -348,9 +573,10 @@ namespace DotVVM.Framework.Controls
 
         readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+        [MethodImpl(Inline)]
         public readonly PropertyGroupEnumerable PropertyGroup(ushort groupId) => new(in this, groupId);
 
-        readonly public DotvvmControlPropertyIdGroupEnumerator EnumeratePropertyGroup(ushort id) =>
+        public readonly DotvvmControlPropertyIdGroupEnumerator EnumeratePropertyGroup(ushort id) =>
             this.keys is {} keys ? new(keys, valuesAsArray, id) :
             this.values is {} ? new(valuesAsDictionary.GetEnumerator(), id) :
             default;
@@ -360,17 +586,17 @@ namespace DotVVM.Framework.Controls
         public bool Remove(DotvvmProperty key) => Remove(key.Id);
         public bool Remove(DotvvmPropertyId key)
         {
+            CheckInvariant();
             if (this.keys != null)
             {
-                var slot = PropertyImmutableHashtable.FindSlot(this.keys, this.hashSeed, key);
+                var slot = Impl.FindSlot(this.keys, key);
                 if (slot < 0)
                     return false;
                 this.OwnKeys();
                 this.keys[slot] = default;
-                if (this.ownsValues)
-                {
-                    this.valuesAsArray[slot] = default;
-                }
+                this.OwnValues();
+                this.valuesAsArray[slot] = default;
+                CheckInvariant();
                 return true;
             }
             if (this.values == null)
@@ -382,27 +608,33 @@ namespace DotVVM.Framework.Controls
             }
         }
 
-        private static object? CloneValue(object? value)
+        private static object? CloneValue(object? value, DotvvmBindableObject? newParent)
         {
             if (value is DotvvmBindableObject bindableObject)
-                return bindableObject.CloneControl();
+            {
+                bindableObject = bindableObject.CloneControl();
+                bindableObject.Parent = newParent;
+                return bindableObject;
+            }
             return null;
         }
 
         public readonly int Count()
         {
+            CheckInvariant();
             if (this.values == null) return 0;
             if (this.keys == null)
                 return this.valuesAsDictionary.Count;
             
-            return PropertyImmutableHashtable.Count(this.keys);
+            return Impl.Count(this.keys);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte BoolToInt(bool x) => Unsafe.As<bool, byte>(ref x);
 
-        internal void CloneInto(ref DotvvmControlProperties newDict)
+        internal void CloneInto(ref DotvvmControlProperties newDict, DotvvmBindableObject newParent)
         {
+            CheckInvariant();
             if (this.values == null)
             {
                 newDict = default;
@@ -411,13 +643,13 @@ namespace DotVVM.Framework.Controls
             else if (this.keys == null)
             {
                 var dictionary = this.valuesAsDictionary;
-                if (dictionary.Count > 8)
+                if (dictionary.Count > 16)
                 {
                     newDict = this;
                     newDict.keys = null;
                     Dictionary<DotvvmPropertyId, object?>? newValues = null;
                     foreach (var (key, value) in dictionary)
-                        if (CloneValue(value) is {} newValue)
+                        if (CloneValue(value, newParent) is {} newValue)
                         {
                             if (newValues is null)
                                 // ok, we have to copy it
@@ -436,27 +668,30 @@ namespace DotVVM.Framework.Controls
                         newDict.valuesAsDictionary = newValues;
                         newDict.ownsValues = true;
                     }
+                    newDict.CheckInvariant();
+                    CheckInvariant();
                     return;
                 }
                 // move to immutable version if it's small. It will be probably cloned multiple times again
-                SwitchToPerfectHashing();
+                SwitchToSimdDict();
             }
 
             newDict = this;
             newDict.ownsKeys = false;
             this.ownsKeys = false;
-            for (int i = 0; i < newDict.valuesAsArray.Length; i++)
+            var valuesAsArray = newDict.valuesAsArray;
+            for (int i = 0; i < valuesAsArray.Length; i++)
             {
-                if (CloneValue(newDict.valuesAsArray[i]) is {} newValue)
+                if (!newDict.keys![i].IsZero && valuesAsArray[i] is {} && CloneValue(valuesAsArray[i], newParent) is {} newValue)
                 {
                     // clone the array if we didn't do that already
                     if (newDict.values == this.values)
                     {
-                        newDict.values = this.valuesAsArray.Clone();
+                        newDict.values = valuesAsArray = valuesAsArray.AsSpan().ToArray();
                         newDict.ownsValues = true;
                     }
 
-                    newDict.valuesAsArray[i] = newValue;
+                    valuesAsArray[i] = newValue;
                 }
             }
 
@@ -465,30 +700,38 @@ namespace DotVVM.Framework.Controls
                 this.ownsValues = false;
                 newDict.ownsValues = false;
             }
+            newDict.CheckInvariant();
+            CheckInvariant();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         void OwnKeys()
         {
             if (this.ownsKeys) return;
             CloneKeys();
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         void OwnValues()
         {
             if (this.ownsValues) return;
             CloneValues();
         }
-        void CloneKeys()
+        [MethodImpl(NoInlining)]
+        DotvvmPropertyId[] CloneKeys()
         {
+            CheckInvariant();
             var oldKeys = this.keys;
             var newKeys = new DotvvmPropertyId[oldKeys!.Length];
             MemoryExtensions.CopyTo(oldKeys, newKeys.AsSpan());
             this.keys = newKeys;
             this.ownsKeys = true;
+            CheckInvariant();
+            return newKeys;
         }
+        [MethodImpl(NoInlining)]
         void CloneValues()
         {
+            CheckInvariant();
             if (keys is {})
             {
                 var oldValues = this.valuesAsArray;
@@ -502,92 +745,151 @@ namespace DotVVM.Framework.Controls
             else
             {
                 this.valuesAsDictionary = new Dictionary<DotvvmPropertyId, object?>(this.valuesAsDictionary);
-                this.flags = 1u << 31;
+                this.ownsValues = true;
             }
+            CheckInvariant();
+        }
+        
+        /// <summary> Switch Empty -> Array8, Array8 -> Array16, or Array16 -> Dictionary </summary>
+        void IncreaseSize()
+        {
+            CheckInvariant();
+            switch (state)
+            {
+                case TableState.Empty:
+                    this.keys = new DotvvmPropertyId[Impl.AdhocTableSize];
+                    this.valuesAsArray = new object?[Impl.AdhocTableSize];
+                    this.state = TableState.Array8;
+                    this.ownsKeys = this.ownsValues = true;
+                    break;
+                case TableState.Array8:
+                    var newKeys = new DotvvmPropertyId[16];
+                    var newValues = new object?[16];
+                    MemoryExtensions.CopyTo(this.keys, newKeys.AsSpan());
+                    MemoryExtensions.CopyTo(this.valuesAsArray, newValues.AsSpan());
+                    this.keys = newKeys;
+                    this.valuesAsArray = newValues;
+                    this.state = TableState.Array16;
+                    this.ownsKeys = this.ownsValues = true;
+                    break;
+                case TableState.Array16:
+                    SwitchToDictionary();
+                    break;
+                case TableState.Dictinary:
+                    break;
+                default:
+                    Impl.Fail();
+                    break;
+            }
+            CheckInvariant();
         }
 
         /// <summary> Converts the internal representation to System.Collections.Generic.Dictionary </summary>
         void SwitchToDictionary()
         {
-            if (this.keys is {})
+            CheckInvariant();
+            switch (state)
             {
-                var keysTmp = this.keys;
-                var valuesTmp = this.valuesAsArray;
-                var d = new Dictionary<DotvvmPropertyId, object?>(capacity: keysTmp.Length);
+                case TableState.Array8:
+                case TableState.Array16:
+                    var keysTmp = this.keys;
+                    var valuesTmp = this.valuesAsArray;
+                    var d = new Dictionary<DotvvmPropertyId, object?>(capacity: keysTmp!.Length);
 
-                for (int i = 0; i < keysTmp.Length; i++)
-                {
-                    if (keysTmp[i].Id != 0)
-                        d[keysTmp[i]] = valuesTmp[i];
-                }
-                this.valuesAsDictionary = d;
-                this.keys = null;
-                this.flags = 1u << 31;
+                    for (int i = 0; i < keysTmp.Length; i++)
+                    {
+                        if (keysTmp[i].Id != 0)
+                            d[keysTmp[i]] = valuesTmp[i];
+                    }
+                    this.state = TableState.Dictinary;
+                    this.valuesAsDictionary = d;
+                    this.keys = null;
+                    this.ownsValues = true;
+                    break;
+                case TableState.Empty:
+                    this.state = TableState.Dictinary;
+                    this.valuesAsDictionary = new Dictionary<DotvvmPropertyId, object?>();
+                    this.ownsValues = true;
+                    break;
+                case TableState.Dictinary:
+                    break;
+                default:
+                    Impl.Fail();
+                    break;
             }
-            else if (this.values is null)
-            {
-                // already in the dictionary
-                return;
-            }
-            else
-            {
-                Debug.Assert(this.values is null);
-                // empty state
-                this.valuesAsDictionary = new Dictionary<DotvvmPropertyId, object?>();
-                this.flags = 1u << 31;
-            }
+            CheckInvariant();
         }
 
         /// <summary> Converts the internal representation to the DotVVM small dictionary implementation </summary>
-        void SwitchToPerfectHashing()
+        void SwitchToSimdDict()
         {
+            CheckInvariant();
             if (this.keys is {})
             {
-                // already in the perfect hashing
+                // already in the small dictionary format
                 return;
             }
             else if (this.values is {})
             {
-                var properties = new DotvvmPropertyId[valuesAsDictionary.Count];
-                var values = new object?[properties.Length];
+                var valuesAsDictionary = this.valuesAsDictionary;
+
+                if (valuesAsDictionary.Count > 16)
+                {
+                    return;
+                }
+
+                var properties = new DotvvmPropertyId[valuesAsDictionary.Count >= 8 ? 16 : 8];
+                var values = new object?[properties.Length >= 8 ? 16 : 8];
                 int j = 0;
-                foreach (var x in this.valuesAsDictionary)
+                foreach (var x in valuesAsDictionary)
                 {
                     (properties[j], values[j]) = x;
                     j++;
                 }
-                Array.Sort(properties, values);
-                (this.hashSeed, this.keys, this.valuesAsArray) = PropertyImmutableHashtable.CreateTableWithValues(properties, values);
-                this.ownsKeys = false;
+                this.keys = properties;
+                this.valuesAsArray = values;
+                this.state = properties.Length == 8 ? TableState.Array8 : TableState.Array16;
+                this.ownsKeys = true;
                 this.ownsValues = true;
             }
             else
             {
             }
+            CheckInvariant();
         }
 
         public readonly struct PropertyGroupEnumerable: IEnumerable<KeyValuePair<DotvvmPropertyId, object?>>
         {
             private readonly DotvvmControlProperties properties;
             private readonly ushort groupId;
+            [MethodImpl(Inline)]
             public PropertyGroupEnumerable(in DotvvmControlProperties properties, ushort groupId)
             {
                 this.properties = properties;
                 this.groupId = groupId;
             }
 
+            [MethodImpl(Inline)]
             public IEnumerator<KeyValuePair<DotvvmPropertyId, object?>> GetEnumerator() => properties.EnumeratePropertyGroup(groupId);
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+
+        public enum TableState : byte
+        {
+            Empty = 0,
+            Dictinary = 1,
+            Array8 = 2,
+            Array16 = 3,
         }
     }
 
     public struct DotvvmControlPropertyIdGroupEnumerator : IEnumerator<KeyValuePair<DotvvmPropertyId, object?>>
     {
-        private DotvvmPropertyId[]? keys;
-        private object?[]? values;
+        private readonly DotvvmPropertyId[]? keys;
+        private readonly object?[]? values;
+        private readonly ushort groupId;
+        private readonly ushort bitmap;
         private int index;
-        private ushort groupId;
-        private ushort bitmap; // TODO!!
         private Dictionary<DotvvmPropertyId, object?>.Enumerator dictEnumerator;
 
         internal DotvvmControlPropertyIdGroupEnumerator(DotvvmPropertyId[] keys, object?[] values, ushort groupId)
@@ -596,7 +898,7 @@ namespace DotVVM.Framework.Controls
             this.values = values;
             this.index = -1;
             this.groupId = groupId;
-            this.bitmap = 0;
+            this.bitmap = Impl.FindGroupBitmap(keys, groupId);
             dictEnumerator = default;
         }
 
@@ -609,7 +911,10 @@ namespace DotVVM.Framework.Controls
             this.dictEnumerator = e;
         }
 
-        public KeyValuePair<DotvvmPropertyId, object?> Current => this.keys is {} keys ? new(keys[index]!, values![index]) : dictEnumerator.Current;
+        public KeyValuePair<DotvvmPropertyId, object?> Current =>
+            this.keys is {} keys
+                ? new(keys[index]!, values![index])
+                : dictEnumerator.Current;
 
         object IEnumerator.Current => this.Current;
 
@@ -620,25 +925,10 @@ namespace DotVVM.Framework.Controls
             var keys = this.keys;
             if (keys is {})
             {
-                var index = (uint)(this.index + 1);
-                var bitmap = this.bitmap;
-                while (index < keys.Length)
-                {
-                    if (index % 16 == 0)
-                    {
-                        bitmap = PropertyImmutableHashtable.FindGroupInNext16Slots(keys, index, groupId);
-                    }
-                    var localIndex = BitOperations.TrailingZeroCount(bitmap);
-                    if (localIndex < 16)
-                    {
-                        this.index = (int)index + localIndex;
-                        this.bitmap = (ushort)(bitmap >> (localIndex + 1));
-                        return true;
-                    }
-                    index += 16;
-                }
-                this.index = keys.Length;
-                return false;
+                var index = this.index + 1;
+                var bitmap = this.bitmap >> index;
+                this.index = index + BitOperations.TrailingZeroCount(bitmap);
+                return bitmap != 0;
             }
             else
             {
