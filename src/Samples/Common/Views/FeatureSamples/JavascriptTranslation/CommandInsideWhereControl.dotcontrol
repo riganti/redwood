@@ -1,0 +1,10 @@
+﻿@viewModel System.Object, mscorlib
+@property System.Collections.Generic.IEnumerable<DotVVM.Samples.Common.ViewModels.FeatureSamples.JavascriptTranslation.CustomerData> Customers
+@property System.Action<int> Click
+
+<dot:Repeater DataSource="{value: _control.Customers}"
+              WrapperTagName="ul">
+    <li>
+        <dot:LinkButton Text="{value: Name}" Click="{staticCommand: _control.Click(CustomerId)}" />
+    </li>
+</dot:Repeater>

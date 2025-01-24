@@ -1,20 +1,22 @@
-import { deserialize } from '../serialization/deserialize'
-import { currentStateSymbol, unmapKnockoutObservables } from '../state-manager';
+import { isDotvvmObservable, isFakeObservableObject, unmapKnockoutObservables } from '../state-manager';
 import { logWarning } from '../utils/logging';
-import { defineConstantProperty, keys } from '../utils/objects';
+import { defineConstantProperty, isPrimitive, keys } from '../utils/objects';
 import * as manager from '../viewModules/viewModuleManager';
 
 function isCommand(value: any, prop: string) {
     return !ko.isObservable(value[prop]) && typeof value[prop] === 'function';
 }
 
-function createWrapperComputed<T>(accessor: () => KnockoutObservable<T> | T, propertyDebugInfo: string | null = null) {
-    const computed = ko.pureComputed({
+/** Wraps a function returning observable to make sure we have a single observable which we will not need to replace even if accessor returns a different instance. */
+function createWrapperComputed<T>(valueAccessor: () => T,
+                                  observableAccessor: () => KnockoutObservable<T> | T = valueAccessor,
+                                  propertyDebugInfo: string | null = null) {
+    const computed = ko.pureComputed<T>({
         read() {
-            return ko.unwrap(accessor());
+            return valueAccessor();
         },
         write(value: T) {
-            const val = accessor();
+            const val = observableAccessor();
             if (ko.isWriteableObservable(val)) {
                 val(value);
             } else {
@@ -22,35 +24,74 @@ function createWrapperComputed<T>(accessor: () => KnockoutObservable<T> | T, pro
             }
         }
     });
-    (computed as any)["wrappedProperty"] = accessor;
+    (computed as any)["wrappedProperty"] = observableAccessor;
     Object.defineProperty(computed, "state", {
         get: () => {
-            const x = accessor() as any
+            const x = observableAccessor() as any
             return (x && x.state) ?? unmapKnockoutObservables(x, true)
         }
     })
     defineConstantProperty(computed, "setState", (state: any) => {
-        const x = accessor() as any
+        const x = observableAccessor() as any
         if (compileConstants.debug && typeof x.setState != "function") {
             throw new Error(`Cannot set state of property ${propertyDebugInfo}.`)
         }
         x.setState(state)
     })
     defineConstantProperty(computed, "patchState", (state: any) => {
-        const x = accessor() as any
+        const x = observableAccessor() as any
         if (compileConstants.debug && typeof x.patchState != "function") {
             throw new Error(`Cannot patch state of property ${propertyDebugInfo}.`)
         }
         x.patchState(state)
     })
     defineConstantProperty(computed, "updateState", (updateFunction: (state: any) => any) => {
-        const x = accessor() as any
+        const x = observableAccessor() as any
         if (compileConstants.debug && typeof x.updateState != "function") {
             throw new Error(`Cannot patch state of property ${propertyDebugInfo}.`)
         }
         x.updateState(updateFunction)
     })
     return computed;
+}
+
+/** Similar to createWrapperComputed, but makes sure the entire object tree pretends to be observables from DotVVM viewmodel
+ *  -- i.e. with state, setState, patchState and updateState methods.
+ *  The function assumes that the object hierarchy which needs wrapping is relatively small or updates are rare and simply replaces everything
+ *  when the accessor value changes. */
+function createWrapperComputedRecursive<T>(accessor: () => KnockoutObservable<T> | T,
+                                           propertyDebugInfo: string | null = null) {
+    return createWrapperComputed<T>(/*valueAccessor:*/ () => processValue(accessor, accessor()),
+                                    /*observableAccessor:*/ accessor,
+                                    propertyDebugInfo)
+
+    function processValue(accessor: () => KnockoutObservable<unknown> | unknown, value: unknown): any {
+        const unwrapped = ko.unwrap(value)
+        // skip if:
+        // * primitive: don't need any nested wrapping
+        // * DotVVM VM observable: assume already wrapped recursively
+        // * DotVVM FakeObservableObject: again, it's already wrapped recursively
+        if (isPrimitive(unwrapped) || isDotvvmObservable(value) || isFakeObservableObject(unwrapped)) {
+            return unwrapped
+        }
+
+        if (Array.isArray(unwrapped)) {
+            return unwrapped.map((item, index) => makeConstantObservable(() => ko.unwrap(accessor() as any)?.[index], item))
+        } else {
+            return Object.freeze(Object.fromEntries(
+                Object.entries(unwrapped as object).map(([prop, value]) =>
+                    [prop, makeConstantObservable(() => ko.unwrap(accessor() as any)?.[prop], value)]
+                )
+            ))
+        }
+    }
+
+    function makeConstantObservable(accessor: () => KnockoutObservable<unknown> | unknown, value: unknown) {
+        // the value in observable is constant, we'll create new one if accessor returns new value
+        // however, this process is asynchronnous, so for writes and `state`, `setState`, ... calls we call it again to be sure
+        const processed = processValue(accessor, value)
+        return createWrapperComputed(() => processed, accessor, propertyDebugInfo)
+    }
 }
 
 function prepareViewModuleContexts(element: HTMLElement, value: any, properties: object) {
@@ -80,14 +121,9 @@ export function wrapControlProperties(valueAccessor: () => any) {
             const commandFunction = value[prop];
             value[prop] = createWrapperComputed(() => commandFunction);
         } else {
-            value[prop] = createWrapperComputed(
-                () => {
-                    const value = valueAccessor()[prop];
-                    // if it's observable or FakeObservableObject, we assume that we don't need to wrap it in observables.
-                    const isWrapped = ko.isObservable(value) || (value && typeof value == 'object' && currentStateSymbol in value)
-                    return isWrapped ? value : deserialize(value)
-                },
-                `'${prop}' at '${valueAccessor.toString()}'`);
+            value[prop] = createWrapperComputedRecursive(
+                () => valueAccessor()[prop],
+                compileConstants.debug ? `'${prop}' at '${valueAccessor}'` : prop);
         }
     }
     return value

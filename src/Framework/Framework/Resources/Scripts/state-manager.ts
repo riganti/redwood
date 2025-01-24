@@ -214,6 +214,10 @@ export function isDotvvmObservable(obj: any): obj is DotvvmObservable<any> {
     return obj?.[notifySymbol] && ko.isObservable(obj)
 }
 
+export function isFakeObservableObject(obj: any): obj is FakeObservableObject<any> {
+    return obj instanceof FakeObservableObject
+}
+
 /**
  * Recursively unwraps knockout observables from the object / array hierarchy. When nothing needs to be unwrapped, the original object is returned.
  * @param allowStateUnwrap Allows accessing [currentStateSymbol], which makes it faster, but doesn't register in the knockout dependency tracker

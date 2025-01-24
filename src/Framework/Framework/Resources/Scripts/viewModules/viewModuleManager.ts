@@ -1,5 +1,4 @@
 import { getViewModelObservable } from "../dotvvm-base";
-import { deserialize } from "../serialization/deserialize";
 import { serialize } from "../serialization/serialize";
 import { unmapKnockoutObservables } from "../state-manager";
 import { debugQuoteString } from "../utils/logging";

@@ -1,0 +1,28 @@
+﻿@viewModel DotVVM.Samples.Common.ViewModels.FeatureSamples.JavascriptTranslation.CommandInsideWhereViewModel, DotVVM.Samples.Common
+
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+    <h1>Command inside Where</h1>
+
+    <h2>Without where</h2>
+    <cc:CommandInsideWhereControl Customers="{value: Customers}"
+                                  Click="{command: (int id) => _root.SendMessage(id)}" />
+
+    <h2>With where</h2>
+    <cc:CommandInsideWhereControl Customers="{value: Customers.Where(c => c.MessageReceived)}"
+                                  Click="{command: (int id) => _root.SendMessage(id)}" />
+
+    <p>
+        Last message customer ID: {{value: LastMessageCustomerId}}
+    </p>
+
+</body>
+</html>
+
+

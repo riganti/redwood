@@ -1,5 +1,4 @@
 import { wrapObservable } from '../utils/knockout';
-import { deserialize } from '../serialization/deserialize';
 import { updateTypeInfo } from '../metadata/typeMap';
 
 export function showUploadDialog(sender: HTMLElement) {
