@@ -7,13 +7,9 @@ namespace DotVVM.Framework.Hosting
         public const string DotvvmRequestContextKey = "dotvvm.requestContext";
         public const string DotvvmIsErrorHandlingKey = "dotvvm.isErrorHandling";
 
-        public const string GlobalizeCultureUrlPath = "dotvvmGlobalizeCulture";
         public const string GlobalizeCultureUrlIdParameter = "id";
-        public const string ResourceRouteName = "dotvvmResource";
-        public const string ResourceHandlerUrl = "~/dotvvmEmbeddedResource?name={0}&assembly={1}";
-        public const string ResourceHandlerMatchUrl = "dotvvmEmbeddedResource";
-
-        public const string FileUploadHandlerMatchUrl = "dotvvmFileUpload";
+        public const string ResourceRouteName = "_dotvvm/resource";
+        public const string FileUploadHandlerMatchUrl = "_dotvvm/fileUpload";
         public const string CsrfTokenMatchUrl = "___dotvvm-create-csrf-token___";
 
         public const string SpaContentPlaceHolderHeaderName = "X-DotVVM-SpaContentPlaceHolder";

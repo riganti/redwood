@@ -7,7 +7,7 @@
 			<span class="dotvvm-upload-button" data-bind="visible: !IsBusy()">
 				<a href="javascript:;" onclick="dotvvm.fileUpload.showUploadDialog(this); return false;">Upload</a>
 			</span>
-			<input data-bind="dotvvm-FileUpload: {&quot;url&quot;:&quot;/dotvvmFileUpload?multiple=true&quot;}" multiple="multiple" style="display:none" type="file">
+			<input data-bind="dotvvm-FileUpload: {&quot;url&quot;:&quot;/_dotvvm/fileUpload?multiple=true&quot;}" multiple="multiple" style="display:none" type="file">
 			<span class="dotvvm-upload-files" data-bind="html: dotvvm.globalize.format(&quot;{0} files&quot;, Files().length)"></span>
 			<span class="dotvvm-upload-progress-wrapper" data-bind="visible: IsBusy">
 				<span class="dotvvm-upload-progress" data-bind="style: { 'width': (Progress() == -1 ? '50' : Progress()) + '%' }"></span>

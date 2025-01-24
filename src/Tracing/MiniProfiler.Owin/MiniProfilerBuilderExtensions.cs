@@ -22,7 +22,7 @@ namespace DotVVM.Tracing.MiniProfiler.Owin
 
             services.Services.Configure((MiniProfilerOptions opt) =>
             {
-                opt.IgnoredPaths.Add("/dotvvmResource/");
+                opt.IgnoredPaths.Add("/_dotvvm/");
             });
 
             services.Services.AddTransient<IConfigureOptions<DotvvmConfiguration>, MiniProfilerSetup>();

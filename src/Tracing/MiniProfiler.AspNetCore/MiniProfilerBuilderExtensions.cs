@@ -22,7 +22,7 @@ namespace DotVVM.Framework.Configuration
             services.Services.AddScoped<IRequestTimingStorage, DotvvmTimingStorage>();
 
             services.Services.Configure((MiniProfilerOptions opt) => {
-                opt.IgnoredPaths.Add("/dotvvmResource/");
+                opt.IgnoredPaths.Add("/_dotvvm/");
             });
 
             services.Services.Configure((DotvvmConfiguration conf) => {

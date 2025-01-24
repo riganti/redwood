@@ -58,7 +58,7 @@ namespace DotVVM.Samples.BasicSamples.ViewModels.FeatureSamples.Redirect
             var stream = new MemoryStream("test custom file"u8.ToArray());
             var generatedFileId = await returnedFileStorage.StoreFileAsync(stream, metadata).ConfigureAwait(false);
 
-            var url = Context.TranslateVirtualPath("~/dotvvmReturnedFile?id=" + generatedFileId);
+            var url = Context.TranslateVirtualPath("~/_dotvvm/returnedFile?id=" + generatedFileId);
             Context.RedirectToUrl(url);
         }
     }

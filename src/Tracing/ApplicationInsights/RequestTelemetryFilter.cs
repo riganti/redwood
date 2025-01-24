@@ -27,7 +27,7 @@ namespace DotVVM.Tracing.ApplicationInsights
             {
                 return true;
             }
-            if (request.Url.AbsolutePath.StartsWith("/dotvvmResource") || request.ResponseCode.Equals("404"))
+            if (request.Url.AbsolutePath.StartsWith("/_dotvvm/resource") || request.ResponseCode.Equals("404"))
             {
                 return false;
             }

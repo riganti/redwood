@@ -28,6 +28,7 @@ namespace DotVVM.Framework.Hosting.Middlewares
         /// <see href="https://developers.google.com/webmasters/ajax-crawling/docs/getting-started"/>
         private static bool TryParseGooglebotHashbangEscapedFragment(string queryString, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string url)
         {
+            // TODO: remove, does not work
             if (queryString?.StartsWith(GooglebotHashbangEscapedFragment, StringComparison.Ordinal) == true)
             {
                 url = queryString.Substring(GooglebotHashbangEscapedFragment.Length);

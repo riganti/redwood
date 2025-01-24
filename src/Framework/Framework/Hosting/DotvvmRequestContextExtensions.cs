@@ -262,7 +262,7 @@ public static class DotvvmRequestContextExtensions
         var downloadAttribute = attachmentDispositionType == "inline" ? null : fileName;
 
         var generatedFileId = await returnedFileStorage.StoreFileAsync(stream, metadata).ConfigureAwait(false);
-        context.SetRedirectResponse(context.TranslateVirtualPath("~/dotvvmReturnedFile?id=" + generatedFileId), downloadName: downloadAttribute);
+        context.SetRedirectResponse(context.TranslateVirtualPath("~/_dotvvm/returnedFile?id=" + generatedFileId), downloadName: downloadAttribute);
         throw new DotvvmInterruptRequestExecutionException(InterruptReason.ReturnFile, fileName);
     }
 
