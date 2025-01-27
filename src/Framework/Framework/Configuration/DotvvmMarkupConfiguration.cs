@@ -9,6 +9,7 @@ using DotVVM.Framework.Compilation.ControlTree;
 using DotVVM.Framework.Compilation.ControlTree.Resolved;
 using DotVVM.Framework.Compilation.Javascript;
 using System.Text.Json.Serialization;
+using DotVVM.Framework.Compilation.Parser.Dothtml;
 
 namespace DotVVM.Framework.Configuration
 {
@@ -70,6 +71,15 @@ namespace DotVVM.Framework.Configuration
         private IList<BindingExtensionParameter> _defaultExtensionParameters = new FreezableList<BindingExtensionParameter>();
 
         public ViewCompilationConfiguration ViewCompilation { get; private set; } = new ViewCompilationConfiguration();
+
+        /// <summary> List of HTML elements which content is not parsed as [dot]html, but streated as raw text until the end tag. By default it is <c>script</c> and <c>style</c> tags in addition to DotVVM <c>dot:InlineScript</c>. The property is meant primarily as compatibility option, as it may be ignored by tooling. </summary>
+        [JsonPropertyName("rawTextElements")]
+        public IList<string> RawTextElements
+        {
+            get => _rawTextElements;
+            set { ThrowIfFrozen(); _rawTextElements = [..value]; }
+        }
+        private IList<string> _rawTextElements = new FreezableList<string>(DotvvmSyntaxConfiguration.Default.RawTextElements);
 
 
         public void AddServiceImport(string identifier, Type type)
@@ -197,6 +207,7 @@ namespace DotVVM.Framework.Configuration
             FreezableList.Freeze(ref _importedNamespaces);
             JavascriptTranslator.Freeze();
             FreezableList.Freeze(ref _defaultExtensionParameters);
+            FreezableList.Freeze(ref _rawTextElements);
         }
     }
 }
