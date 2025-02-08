@@ -6,15 +6,11 @@ using System.Threading.Tasks;
 
 namespace DotVVM.Samples.BasicSamples.ViewModels.ControlSamples.DataPager
 {
-    public class DataPagerViewModel : DotvvmViewModelBase
+    public class DataPagerTemplatesViewModel : DotvvmViewModelBase
     {
         public GridViewDataSet<Data> DataSet { get; set; }
 
-        public string[] RomanNumerals { get; set; } = new[] { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX" };
-
-        public bool Enabled { get; set; } = true;
-
-        public int ItemsInDatabaseCount { get; set; } = 2;
+        public string[] RomanNumerals { get; set; } = new[] { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX" };
 
         public override Task Init()
         {
@@ -32,16 +28,10 @@ namespace DotVVM.Samples.BasicSamples.ViewModels.ControlSamples.DataPager
         {
             if (DataSet.IsRefreshRequired)
             {
-                DataSet.LoadFromQueryable(FakeDB(ItemsInDatabaseCount));
+                DataSet.LoadFromQueryable(FakeDB(50));
             }
 
             return base.PreRender();
-        }
-
-        public void Populate()
-        {
-            ItemsInDatabaseCount = 50;
-            DataSet.RequestRefresh();
         }
 
         private IQueryable<Data> FakeDB(int itemsCreatorCounter)

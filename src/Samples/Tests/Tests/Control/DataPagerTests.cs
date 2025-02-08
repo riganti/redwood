@@ -295,5 +295,27 @@ namespace DotVVM.Samples.Tests.Control
                 CheckNearPageIndexes(Enumerable.Range(11, 7));
             });
         }
+
+        [Fact]
+        public void Control_DataPager_DataPagerTemplates()
+        {
+            RunInAllBrowsers(browser => {
+                browser.NavigateToUrl(SamplesRouteUrls.ControlSamples_DataPager_DataPagerTemplates);
+
+                var pager = browser.Single(".pagination");
+
+                var items = pager.FindElements(".page-item");
+                items.ThrowIfDifferentCountThan(10);
+
+                var content = new[] { "◀️◀️", "◀️", "I", "II", "III", "IV", "V", "VI", "▶️", "▶️▶️" };
+                for (var i = 0; i < items.Count; i++)
+                {
+                    var item = items[i];
+
+                    var link = item.Single(".page-link");
+                    AssertUI.TextEquals(link, content[i]);
+                }
+            });
+        }
     }
 }
