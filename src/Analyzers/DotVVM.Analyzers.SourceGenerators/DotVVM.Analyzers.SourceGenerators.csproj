@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\Dothtml\Tokenizer\*.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\Binding\Tokenizer\*.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\ITextRange.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\TextRange.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\TokenError.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\TokenBase.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\TokenizerBase.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\NullTokenError.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\SimpleTokenError.cs" />
+    <Compile Include="..\..\Framework\Framework\Compilation\Parser\BeginWithLastTokenOfTypeTokenError.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.2">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.11.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

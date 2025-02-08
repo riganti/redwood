@@ -131,6 +131,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotVVM.Adapters.WebForms.Te
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotVVM.Adapters.WebForms", "Adapters\WebForms\DotVVM.Adapters.WebForms.csproj", "{25442AA8-7E4D-47EC-8CCB-F9E2B45EB998}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotVVM.Analyzers.SourceGenerators", "Analyzers\DotVVM.Analyzers.SourceGenerators\DotVVM.Analyzers.SourceGenerators.csproj", "{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -717,6 +719,18 @@ Global
 		{25442AA8-7E4D-47EC-8CCB-F9E2B45EB998}.Release|x64.Build.0 = Release|Any CPU
 		{25442AA8-7E4D-47EC-8CCB-F9E2B45EB998}.Release|x86.ActiveCfg = Release|Any CPU
 		{25442AA8-7E4D-47EC-8CCB-F9E2B45EB998}.Release|x86.Build.0 = Release|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Debug|x64.Build.0 = Debug|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Debug|x86.Build.0 = Debug|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Release|x64.ActiveCfg = Release|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Release|x64.Build.0 = Release|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Release|x86.ActiveCfg = Release|Any CPU
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -776,6 +790,7 @@ Global
 		{05A3401A-C541-4F7C-AAD8-02A23648CD27} = {42513853-3772-46D2-94C2-965101E2406D}
 		{A6A8451E-99D8-4296-BBA9-69E1E289270A} = {05A3401A-C541-4F7C-AAD8-02A23648CD27}
 		{25442AA8-7E4D-47EC-8CCB-F9E2B45EB998} = {42513853-3772-46D2-94C2-965101E2406D}
+		{556CF9DA-CD82-4DFF-90E2-BD0698359DF4} = {D10C02E0-DB0B-49F2-8D2E-BA3B5ED4654C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {61F8A195-365E-47B1-A6F2-CD3534E918F8}

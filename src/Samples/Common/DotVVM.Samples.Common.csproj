@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFrameworks>$(DefaultTargetFrameworks)</TargetFrameworks>
     <AssemblyName>DotVVM.Samples.Common</AssemblyName>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="compiler\resources\**\*" />
@@ -53,6 +54,12 @@
     <ProjectReference Include="../Api.Common/DotVVM.Samples.BasicSamples.Api.Common.csproj" />
     <ProjectReference Include="../EmbeddedResourceControls/EmbeddedResourceControls.csproj" />
     <ProjectReference Include="../../AutoUI/Core/DotVVM.AutoUI.csproj" />
+    <ProjectReference Include="..\..\Analyzers\DotVVM.Analyzers.SourceGenerators\DotVVM.Analyzers.SourceGenerators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"/>
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="**/*.dothtml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.0">
