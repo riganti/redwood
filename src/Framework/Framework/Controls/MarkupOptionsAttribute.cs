@@ -34,6 +34,16 @@ namespace DotVVM.Framework.Controls
         internal bool? _allowHardCodedValue = null;
 
         /// <summary>
+        /// Gets or sets whether the `resource` binding can be used on this property. By default, the <see cref="AllowHardCodedValue" /> is copied.
+        /// </summary>
+        public bool AllowResourceBinding
+        {
+            get => _allowResourceBinding ?? AllowHardCodedValue;
+            set => _allowResourceBinding = value;
+        }
+        internal bool? _allowResourceBinding = null;
+
+        /// <summary>
         /// Gets or sets the name in markup. Null means that the name of the property should be used.
         /// </summary>
         public string? Name { get; set; }

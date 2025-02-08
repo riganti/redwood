@@ -18,7 +18,7 @@ namespace DotVVM.AutoUI.Metadata
         public string Name { get; init; }
         public Type Type { get; init; }
 
-        public IValueBinding? ValueBinding { get; init; }
+        public IStaticValueBinding? ValueBinding { get; init; }
 
         public LocalizableString? DisplayName { get; set; }
         public LocalizableString? Placeholder { get; set; }

@@ -336,13 +336,21 @@ namespace DotVVM.Framework.Binding
                 {
                     dotvvmProperty = new DotvvmProperty(propertyName, type, declaringType, boxedDefaultValue, false, attributeProvider);
                     dotvvmProperty.OwningCapability = declaringCapability;
-                    
+
                     var isNullable = propertyType.IsNullable() || type.IsNullable();
                     if (!defaultValue.HasValue && !isNullable)
                         dotvvmProperty.MarkupOptions._required ??= true;
 
-                    if (typeof(IBinding).IsAssignableFrom(propertyType))
+                    if (typeof(IValueBinding).IsAssignableFrom(propertyType))
+                    {
                         dotvvmProperty.MarkupOptions._allowHardCodedValue ??= false;
+                        dotvvmProperty.MarkupOptions._allowResourceBinding ??= false;
+                    }
+                    if (typeof(IBinding).IsAssignableFrom(propertyType))
+                    {
+                        dotvvmProperty.MarkupOptions._allowHardCodedValue ??= false;
+                        dotvvmProperty.MarkupOptions._allowResourceBinding ??= true;
+                    }
                     else if (!typeof(ValueOrBinding).IsAssignableFrom(propertyType.UnwrapNullableType()))
                         dotvvmProperty.MarkupOptions._allowBinding ??= false;
 

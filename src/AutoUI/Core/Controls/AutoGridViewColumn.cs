@@ -14,14 +14,14 @@ namespace DotVVM.AutoUI.Controls
     [ControlMarkupOptions(PrimaryName = "GridViewColumn")]
     public class AutoGridViewColumn : GridViewColumn
     {
-        [MarkupOptions(AllowHardCodedValue = false, Required = true)]
-        public IValueBinding? Property
+        [MarkupOptions(AllowHardCodedValue = false, AllowResourceBinding = true, Required = true)]
+        public IStaticValueBinding? Property
         {
-            get { return (IValueBinding?)GetValue(PropertyProperty); }
+            get { return (IStaticValueBinding?)GetValue(PropertyProperty); }
             set { SetValue(PropertyProperty, value); }
         }
         public static readonly DotvvmProperty PropertyProperty =
-            DotvvmProperty.Register<IValueBinding, AutoGridViewColumn>(nameof(Property));
+            DotvvmProperty.Register<IStaticValueBinding, AutoGridViewColumn>(nameof(Property));
 
 
         public static DotvvmCapabilityProperty PropsProperty =
@@ -93,7 +93,7 @@ namespace DotVVM.AutoUI.Controls
         [DotvvmControlCapability]
         public sealed record Props
         {
-            public IValueBinding? Property { get; init; }
+            public IStaticValueBinding? Property { get; init; }
             public ValueOrBinding<bool> IsEditable { get; init; } = new(true);
             public ValueOrBinding<string>? HeaderText { get; init; }
             public ITemplate? HeaderTemplate { get; init; }

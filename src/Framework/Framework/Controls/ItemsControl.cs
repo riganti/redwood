@@ -14,6 +14,8 @@ using DotVVM.Framework.Compilation.ControlTree;
 using System.Linq.Expressions;
 using DotVVM.Framework.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using FastExpressionCompiler;
+using DotVVM.Framework.Compilation;
 
 namespace DotVVM.Framework.Controls
 {
@@ -25,10 +27,10 @@ namespace DotVVM.Framework.Controls
         /// <summary>
         /// Gets or sets the source collection or a GridViewDataSet that contains data in the control.
         /// </summary>
-        [MarkupOptions(AllowHardCodedValue = false)]
+        [MarkupOptions(AllowHardCodedValue = false, AllowResourceBinding = true)]
         [BindingCompilationRequirements(
             required: new[] { typeof(DataSourceAccessBinding) },
-            optional: new[] { typeof(DataSourceLengthBinding), typeof(CollectionElementDataContextBindingProperty) })]
+            optional: new[] { typeof(DataSourceLengthBinding), typeof(CollectionElementDataContextBindingProperty), typeof(SimplePathExpressionBindingProperty) })]
         public object? DataSource
         {
             get { return GetValue(DataSourceProperty); }
@@ -55,29 +57,42 @@ namespace DotVVM.Framework.Controls
         /// <summary>
         /// Gets the data source binding.
         /// </summary>
-        protected IValueBinding GetDataSourceBinding()
+        protected IStaticValueBinding GetDataSourceBinding()
         {
-            var binding = GetValueBinding(DataSourceProperty);
-            if (binding == null)
+            var binding = GetBinding(DataSourceProperty);
+            if (binding is null)
             {
                 throw new DotvvmControlException(this, $"The DataSource property of the '{GetType().Name}' control must be set!");
             }
-            return binding;
+            if (binding is not IStaticValueBinding resourceBinding)
+                throw new BindingHelper.BindingNotSupportedException(binding) { RelatedControl = this };
+            return resourceBinding;
         }
 
         protected IValueBinding GetItemBinding()
         {
-            return (IValueBinding)GetForeachDataBindExpression().GetProperty<DataSourceCurrentElementBinding>().Binding;
+            return GetForeachDataBindExpression().GetProperty<DataSourceCurrentElementBinding>().Binding as IValueBinding ??
+                throw new DotvvmControlException(this, $"The Item property of the '{GetType().Name}' control must be set to a value binding!");
         }
 
         public IEnumerable? GetIEnumerableFromDataSource() =>
             (IEnumerable?)GetForeachDataBindExpression().Evaluate(this);
 
-        protected IValueBinding GetForeachDataBindExpression() =>
-            (IValueBinding)GetDataSourceBinding().GetProperty<DataSourceAccessBinding>().Binding;
+        protected IStaticValueBinding GetForeachDataBindExpression() =>
+            (IStaticValueBinding)GetDataSourceBinding().GetProperty<DataSourceAccessBinding>().Binding;
 
-        protected string GetPathFragmentExpression() =>
-            GetDataSourceBinding().GetKnockoutBindingExpression(this);
+        protected string? TryGetKnockoutForeachExpression(bool unwrapped = false) =>
+            (GetForeachDataBindExpression() as IValueBinding)?.GetKnockoutBindingExpression(this, unwrapped);
+
+        protected string GetPathFragmentExpression()
+        {
+            var binding = GetDataSourceBinding();
+            return binding.GetProperty<SimplePathExpressionBindingProperty>().Code.FormatKnockoutScript(this, binding);
+        }
+
+        /// <summary> Returns data context which is expected in the ItemTemplate </summary>
+        protected DataContextStack GetChildDataContext() =>
+            GetDataSourceBinding().GetProperty<CollectionElementDataContextBindingProperty>().DataContext;
 
         [ApplyControlStyle]
         public static void OnCompilation(ResolvedControl control, BindingCompilationService bindingService)
@@ -87,9 +102,10 @@ namespace DotVVM.Framework.Controls
             if (!(dataSourceProperty is ResolvedPropertyBinding dataSourceBinding)) return;
 
             var dataContext = dataSourceBinding.Binding.Binding.GetProperty<CollectionElementDataContextBindingProperty>().DataContext;
+            var bindingType = dataContext.ServerSideOnly ? BindingParserOptions.Resource : BindingParserOptions.Value;
 
             control.SetProperty(new ResolvedPropertyBinding(Internal.CurrentIndexBindingProperty,
-                new ResolvedBinding(bindingService, new Compilation.BindingParserOptions(typeof(ValueBindingExpression)), dataContext,
+                new ResolvedBinding(bindingService, bindingType, dataContext,
                 parsedExpression: CreateIndexBindingExpression(dataContext))));
         }
 
@@ -108,7 +124,7 @@ namespace DotVVM.Framework.Controls
             {
                 // slower path: create the _index binding at runtime
                 var bindingService = context.Services.GetRequiredService<BindingCompilationService>();
-                var dataContext = GetDataSourceBinding().GetProperty<CollectionElementDataContextBindingProperty>().DataContext;
+                var dataContext = GetChildDataContext();
                 return bindingService.Cache.CreateCachedBinding("_index", new object[] { dataContext }, () =>
                     new ValueBindingExpression<int>(bindingService, new object?[] {
                         dataContext,

@@ -13,6 +13,7 @@ using DotVVM.Framework.Binding;
 using DotVVM.Framework.Binding.Expressions;
 using DotVVM.Framework.Binding.Properties;
 using DotVVM.Framework.Compilation.ControlTree;
+using DotVVM.Framework.Utils;
 using DotVVM.Framework.ViewModel.Validation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -57,9 +58,8 @@ namespace DotVVM.AutoUI
                 return Array.Empty<ValidationAttribute>();
             return GetPropertyValidators(property.PropertyInfo);
         }
-        
 
-        public IValueBinding CreateValueBinding(PropertyDisplayMetadata property)
+        public IStaticValueBinding CreateValueBinding(PropertyDisplayMetadata property)
         {
             if (property.ValueBinding is not null)
                 return property.ValueBinding;
@@ -68,10 +68,12 @@ namespace DotVVM.AutoUI
                 throw new ArgumentException("property.PropertyInfo is null => cannot create value binding for this property");
 
             var s = this.BindingService;
-            return s.Cache.CreateCachedBinding("AutoUI-Value", new object?[] { property.PropertyInfo, DataContextStack }, () => {
+            var serverOnly = this.DataContextStack.ServerSideOnly;
+            return s.Cache.CreateCachedBinding("AutoUI-Value", new object?[] { BoxingUtils.Box(serverOnly), property.PropertyInfo, DataContextStack }, () => {
                 var _this = Expression.Parameter(DataContextStack.DataContextType, "_this").AddParameterAnnotation(new BindingParameterAnnotation(DataContextStack));
                 var expr = Expression.Property(_this, property.PropertyInfo);
-                return (IValueBinding)BindingService.CreateBinding(typeof(ValueBindingExpression<>), new object[] {
+                var bindingType = serverOnly ? typeof(ResourceBindingExpression<>) : typeof(ValueBindingExpression<>);
+                return (IStaticValueBinding)BindingService.CreateBinding(bindingType, new object[] {
                     DataContextStack,
                     new ParsedExpressionBindingProperty(expr)
                 });

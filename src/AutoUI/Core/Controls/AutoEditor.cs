@@ -63,7 +63,7 @@ namespace DotVVM.AutoUI.Controls
             /// <summary>
             /// Gets or sets the viewmodel property for which the editor should be generated.
             /// </summary>
-            public IValueBinding? Property { get; init; }
+            public IStaticValueBinding? Property { get; init; }
 
             /// <summary>
             /// Gets or sets the command that will be triggered when the value in the editor is changed.

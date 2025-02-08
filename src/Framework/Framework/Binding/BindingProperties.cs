@@ -234,5 +234,5 @@ namespace DotVVM.Framework.Binding.Properties
     /// <summary> Contains the same binding as this binding but converted to a string. </summary>
     public sealed record ExpectedAsStringBindingExpression(IBinding Binding);
     /// <summary> Contains references to the .NET properties referenced in the binding. MainProperty is the property on the root node (modulo conversions and simple expressions). </summary>
-    public sealed record ReferencedViewModelPropertiesBindingProperty(PropertyInfo? MainProperty, PropertyInfo[] OtherProperties, IValueBinding UnwrappedBindingExpression);
+    public sealed record ReferencedViewModelPropertiesBindingProperty(PropertyInfo? MainProperty, PropertyInfo[] OtherProperties, IValueBinding? UnwrappedBindingExpression);
 }

@@ -121,7 +121,6 @@ namespace DotVVM.AutoUI.Controls
                 Label? labelElement;
                 HtmlGenericControl controlElement;
                 var formGroup = InitializeFormGroup(property, context, props, out labelElement, out controlElement);
-                
 
                 // create the validator
                 InitializeValidation(controlElement, labelElement, property, context);

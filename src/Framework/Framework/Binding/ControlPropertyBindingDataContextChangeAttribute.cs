@@ -7,6 +7,8 @@ using System.Text;
 using DotVVM.Framework.Binding.Expressions;
 using DotVVM.Framework.Compilation.ControlTree;
 using DotVVM.Framework.Controls;
+using DotVVM.Framework.Utils;
+using FastExpressionCompiler;
 
 namespace DotVVM.Framework.Binding
 {
@@ -65,17 +67,16 @@ namespace DotVVM.Framework.Binding
         public override Type? GetChildDataContextType(Type dataContext, DataContextStack controlContextStack, DotvvmBindableObject control, DotvvmProperty? property = null)
         {
             var controlType = control.GetType();
-            var controlPropertyField = controlType.GetField($"{PropertyName}Property", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-            var controlProperty = (DotvvmProperty?)controlPropertyField?.GetValue(null);
+            var controlProperty = DotvvmProperty.ResolveProperty(controlType, PropertyName);
 
             if (controlProperty == null)
             {
-                throw new Exception($"The property '{PropertyName}' was not found on control '{controlType}'!");
+                throw new Exception($"The property '{PropertyName}' was not found on control '{controlType.ToCode()}'!");
             }
 
             if (control.properties.Contains(controlProperty))
             {
-                return control.GetValueBinding(controlProperty) is IValueBinding valueBinding
+                return control.GetBinding(controlProperty) is IStaticValueBinding valueBinding
                     ? valueBinding.ResultType
                     : dataContext;
             }
@@ -85,9 +86,32 @@ namespace DotVVM.Framework.Binding
                 return dataContext;
             }
 
-            throw new Exception($"Property '{PropertyName}' is required on '{controlType.Name}'.");
+            throw new Exception($"Property '{PropertyName}' is required on '{controlType.ToCode()}'.");
         }
 
         public override IEnumerable<string> PropertyDependsOn => new[] { PropertyName };
+
+        public override bool? IsServerSideOnly(DataContextStack controlContextStack, DotvvmBindableObject control, DotvvmProperty? property = null)
+        {
+            var controlProperty = DotvvmProperty.ResolveProperty(control.GetType(), PropertyName);
+            if (controlProperty is null)
+                return null;
+
+            var binding = control.GetBinding(controlProperty);
+            return binding is not IValueBinding or null;
+        }
+
+        public override bool? IsServerSideOnly(IDataContextStack controlContextStack, IAbstractControl control, IPropertyDescriptor? property = null)
+        {
+            if (!control.Metadata.TryGetProperty(PropertyName, out var controlProperty))
+                return null;
+            if (!control.TryGetProperty(controlProperty, out var setter))
+                return null;
+            
+            return
+                setter is IAbstractPropertyBinding { Binding.BindingType: var bindingType } &&
+                !typeof(IValueBinding).IsAssignableFrom(bindingType);
+
+        }
     }
 }

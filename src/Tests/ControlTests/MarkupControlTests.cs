@@ -27,13 +27,16 @@ namespace DotVVM.Framework.Tests.ControlTests
             _ = Repeater.RenderAsNamedTemplateProperty;
             config.Resources.RegisterScriptModuleUrl("somemodule", "http://localhost:99999/somemodule.js", null);
             config.Markup.AddMarkupControl("cc", "CustomControl", "CustomControl.dotcontrol");
-            config.Markup.AddMarkupControl("cc", "CustomControlWithCommand", "CustomControlWithCommand.dotcontrol");
+            config.Markup.AddMarkupControl("cc", "CustomControlWithStaticCommand", "CustomControlWithStaticCommand.dotcontrol");
+            config.Markup.AddMarkupControl("cc", "CustomControlWithCommand_value", "CustomControlWithCommand_value.dotcontrol");
+            config.Markup.AddMarkupControl("cc", "CustomControlWithCommand_resource", "CustomControlWithCommand_resource.dotcontrol");
             config.Markup.AddMarkupControl("cc", "CustomControlWithProperty", "CustomControlWithProperty.dotcontrol");
             config.Markup.AddMarkupControl("cc", "CustomControlWithInvalidVM", "CustomControlWithInvalidVM.dotcontrol");
             config.Markup.AddMarkupControl("cc", "CustomControlWithInternalProperty", "CustomControlWithInternalProperty.dotcontrol");
             config.Markup.AddMarkupControl("cc", "CustomControlWithResourceProperty", "CustomControlWithResourceProperty.dotcontrol");
             config.Markup.AddMarkupControl("cc", "CustomControlWithJsInvoke", "CustomControlWithJsInvoke.dotcontrol");
             config.Markup.AddMarkupControl("cc", "DataContextChangeControl", "DataContextChangeControl.dotcontrol");
+            config.Markup.AddMarkupControl("cc", "MarkupControl_ValueInResource_Error", "MarkupControl_ValueInResource_Error.dotcontrol");
             config.Styles.Register<Repeater>().SetProperty(r => r.RenderAsNamedTemplate, false, StyleOverrideOptions.Ignore);
         }, services: s => {
             s.Services.AddSingleton<TestService>();
@@ -71,14 +74,14 @@ namespace DotVVM.Framework.Tests.ControlTests
         {
             var r = await cth.RunPage(typeof(BasicTestViewModel), @"
 
-                <cc:CustomControlWithCommand DataContext={value: Integer} Click={staticCommand: s.Save(_parent.Integer)} Another={value: _this} />
+                <cc:CustomControlWithStaticCommand DataContext={value: Integer} Click={staticCommand: s.Save(_parent.Integer)} Another={value: _this} />
                 <dot:Repeater DataSource={value: Collection}>
-                    <cc:CustomControlWithCommand Click={staticCommand: s.Save(_this)} Another={value: _root.Integer} />
+                    <cc:CustomControlWithStaticCommand Click={staticCommand: s.Save(_this)} Another={value: _root.Integer} />
                 </dot:Repeater>
                 ",
                 directives: $"@service s = {typeof(TestService)}",
                 markupFiles: new Dictionary<string, string> {
-                    ["CustomControlWithCommand.dotcontrol"] = @"
+                    ["CustomControlWithStaticCommand.dotcontrol"] = @"
                         @viewModel int
                         @baseType DotVVM.Framework.Tests.ControlTests.CustomControlWithCommand
                         @wrapperTag div
@@ -87,6 +90,61 @@ namespace DotVVM.Framework.Tests.ControlTests
             );
 
             check.CheckString(r.FormattedHtml, fileExtension: "html");
+        }
+
+        [TestMethod]
+        [DataRow("value")]
+        [DataRow("resource")]
+        public async Task MarkupControl_CommandInResourceRepeater(string innerPropertyBinding)
+        {
+            var r = await cth.RunPage(typeof(BasicTestViewModel), $$"""
+
+                <cc:CustomControlWithCommand_{{innerPropertyBinding}} DataContext={value: Integer} Click={command: s.Save(_parent.Integer)} Another={value: _this} />
+                <dot:Repeater DataSource={resource: Collection}>
+                    <cc:CustomControlWithCommand_{{innerPropertyBinding}} Click={command: s.Save(_this)} Another={value: _root.Integer} />
+                </dot:Repeater>
+                """,
+                directives: $"@service s = {typeof(TestService)}",
+                fileName: $"MarkupControl_CommandInResourceRepeater_{innerPropertyBinding}",
+                markupFiles: new Dictionary<string, string> {
+                    [$"CustomControlWithCommand_{innerPropertyBinding}.dotcontrol"] = $$"""
+                        @viewModel int
+                        @baseType DotVVM.Framework.Tests.ControlTests.CustomControlWithCommand
+                        @wrapperTag div
+                        <dot:Button Click={command: _control.Click()}
+                                    Text={{{innerPropertyBinding}}: $"Value binding is OK if it doesn't touch _this {_control.Another}"} />
+                        """
+                }
+            );
+
+            check.CheckString(r.FormattedHtml, fileExtension: "html", checkName: innerPropertyBinding);
+        }
+
+        [TestMethod]
+        public async Task MarkupControl_ValueInResource_Error()
+        {
+            // currently, the error is only thrown at runtime
+            var exception = await Assert.ThrowsExceptionAsync<DotvvmControlException>(() =>
+                cth.RunPage(typeof(BasicTestViewModel), @"
+                    <cc:MarkupControl_ValueInResource_Error DataContext={value: Integer} />
+                    <dot:Repeater DataSource={resource: Collection}>
+                        <cc:MarkupControl_ValueInResource_Error />
+                    </dot:Repeater>
+                    ",
+                    directives: $"@service s = {typeof(TestService)}",
+                    markupFiles: new Dictionary<string, string> {
+                        ["MarkupControl_ValueInResource_Error.dotcontrol"] = """
+                            @viewModel int
+                            @wrapperTag div
+                            {{value: $'Test-{_this}-1234'}}
+                            """
+                    }
+                ));
+            
+            StringAssert.Contains(exception.Message, "cannot be used in resource-binding only data context, because it uses value bindings on the data context.");
+
+            // is dothtml (not dotcontrol), otherwise it's impossible to find where is it being a problem
+            StringAssert.EndsWith(exception.FileName, "MarkupControl_ValueInResource_Error.dothtml");
         }
 
         [TestMethod]

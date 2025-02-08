@@ -24,7 +24,7 @@ namespace DotVVM.Framework.Controls
         /// Note that data annotations of the property used in the target binding are not validated, only the rules inside its value.
         /// </summary>
         [AttachedProperty(typeof(object))]
-        [MarkupOptions(AllowHardCodedValue = false)]
+        [MarkupOptions(AllowHardCodedValue = false, AllowResourceBinding = true)]
         public static DotvvmProperty TargetProperty = DotvvmProperty.Register<object?, Validation>(() => TargetProperty, null, true);
 
 

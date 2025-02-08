@@ -202,6 +202,7 @@ namespace DotVVM.Framework.Controls
             head = null;
 
             var dataSourceBinding = GetDataSourceBinding();
+            var serverOnly = dataSourceBinding is not IValueBinding;
             var dataSource = DataSource;
 
             CreateHeaderRow(context);
@@ -212,9 +213,10 @@ namespace DotVVM.Framework.Controls
                 foreach (var item in GetIEnumerableFromDataSource()!)
                 {
                     // create row
-                    var placeholder = new DataItemContainer { DataItemIndex = index };
+                    var placeholder = new DataItemContainer { DataItemIndex = index, RenderItemBinding = !serverOnly };
                     placeholder.SetDataContextTypeFromDataSource(dataSourceBinding);
                     placeholder.DataContext = item;
+                    placeholder.SetValue(Internal.IsServerOnlyDataContextProperty, serverOnly);
                     placeholder.SetValue(Internal.PathFragmentProperty, GetPathFragmentExpression() + "/[" + index + "]");
                     placeholder.ID = index.ToString();
                     Children.Add(placeholder);
@@ -331,15 +333,9 @@ namespace DotVVM.Framework.Controls
 
             if (!isHeaderCell)
             {
-                var cssClassBinding = column.GetValueBinding(GridViewColumn.CssClassProperty);
-                if (cssClassBinding != null)
-                {
-                    cellAttributes["class"] = cssClassBinding;
-                }
-                else if (!string.IsNullOrWhiteSpace(column.CssClass))
-                {
-                    cellAttributes["class"] = column.CssClass;
-                }
+                if (column.GetValueRaw(GridViewColumn.CssClassProperty) is {} cssClassBinding &&
+                    cssClassBinding is not "")
+                    cellAttributes.Set("class", cssClassBinding);
             }
             else
             {
@@ -471,19 +467,22 @@ namespace DotVVM.Framework.Controls
             head?.Render(writer, context);
 
             // render body
-            var foreachBinding = GetForeachDataBindExpression().GetKnockoutBindingExpression(this);
-            if (RenderOnServer)
+            var foreachBinding = TryGetKnockoutForeachExpression();
+            if (foreachBinding is {})
             {
-                writer.AddKnockoutDataBind("dotvvm-SSR-foreach", "{data:" + foreachBinding + "}");
-            }
-            else
-            {
-                writer.AddKnockoutForeachDataBind(foreachBinding);
+                if (RenderOnServer)
+                {
+                    writer.AddKnockoutDataBind("dotvvm-SSR-foreach", "{data:" + foreachBinding + "}");
+                }
+                else
+                {
+                    writer.AddKnockoutForeachDataBind(foreachBinding);
+                }
             }
             writer.RenderBeginTag("tbody");
 
             // render contents
-            if (RenderOnServer)
+            if (RenderOnServer || foreachBinding is null)
             {
                 // render on server
                 var index = 0;
@@ -519,8 +518,10 @@ namespace DotVVM.Framework.Controls
         {
             if (!ShowHeaderWhenNoData)
             {
-                writer.WriteKnockoutDataBindComment("if",
-                    GetForeachDataBindExpression().GetProperty<DataSourceLengthBinding>().Binding.CastTo<IValueBinding>().GetKnockoutBindingExpression(this));
+                if (GetForeachDataBindExpression().GetProperty<DataSourceLengthBinding>().Binding is IValueBinding conditionValueBinding)
+                {
+                    writer.WriteKnockoutDataBindComment("if", conditionValueBinding.GetKnockoutBindingExpression(this));
+                }
             }
 
             base.RenderBeginTag(writer, context);
@@ -528,7 +529,8 @@ namespace DotVVM.Framework.Controls
 
         protected override void RenderControl(IHtmlWriter writer, IDotvvmRequestContext context)
         {
-            if (RenderOnServer && numberOfRows == 0 && !ShowHeaderWhenNoData)
+            var ssr = RenderOnServer || GetForeachDataBindExpression() is not IValueBinding;
+            if (ssr && numberOfRows == 0 && !ShowHeaderWhenNoData)
             {
                 emptyDataContainer?.Render(writer, context);
             }
@@ -542,7 +544,7 @@ namespace DotVVM.Framework.Controls
         {
             base.RenderEndTag(writer, context);
 
-            if (!ShowHeaderWhenNoData)
+            if (!ShowHeaderWhenNoData && GetForeachDataBindExpression() is IValueBinding)
             {
                 writer.WriteKnockoutDataBindEndComment();
             }
@@ -552,20 +554,23 @@ namespace DotVVM.Framework.Controls
 
         protected override void AddAttributesToRender(IHtmlWriter writer, IDotvvmRequestContext context)
         {
-            var itemType = ReflectionUtils.GetEnumerableType(GetDataSourceBinding().ResultType);
-            var userColumnMappingService = context.Services.GetRequiredService<UserColumnMappingCache>();
-            var mapping = userColumnMappingService.GetMapping(itemType!);
-            var mappingJson = JsonSerializer.Serialize(mapping, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
-
-            var helperBinding = new KnockoutBindingGroup();
-            helperBinding.Add("dataSet", GetDataSourceBinding().GetKnockoutBindingExpression(this, unwrapped: true));
-            helperBinding.Add("mapping", mappingJson);
-            if (this.LoadData is { } loadData)
+            if (GetBinding(DataSourceProperty) is IValueBinding dataBinding)
             {
-                var loadDataExpression = KnockoutHelper.GenerateClientPostbackLambda("LoadData", loadData, this, new PostbackScriptOptions(elementAccessor: "$element", koContext: CodeParameterAssignment.FromIdentifier("$context")));
-                helperBinding.Add("loadDataSet", loadDataExpression);
+                var itemType = ReflectionUtils.GetEnumerableType(GetDataSourceBinding().ResultType);
+                var userColumnMappingService = context.Services.GetRequiredService<UserColumnMappingCache>();
+                var mapping = userColumnMappingService.GetMapping(itemType!);
+                var mappingJson = JsonSerializer.Serialize(mapping, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
+                var helperBinding = new KnockoutBindingGroup();
+                helperBinding.Add("dataSet", dataBinding.GetKnockoutBindingExpression(this, unwrapped: true));
+                helperBinding.Add("mapping", mappingJson);
+                if (this.LoadData is { } loadData)
+                {
+                    var loadDataExpression = KnockoutHelper.GenerateClientPostbackLambda("LoadData", loadData, this, new PostbackScriptOptions(elementAccessor: "$element", koContext: CodeParameterAssignment.FromIdentifier("$context")));
+                    helperBinding.Add("loadDataSet", loadDataExpression);
+                }
+                writer.AddKnockoutDataBind("dotvvm-gridviewdataset", helperBinding.ToString());
             }
-            writer.AddKnockoutDataBind("dotvvm-gridviewdataset", helperBinding.ToString());
 
             base.AddAttributesToRender(writer, context);
         }

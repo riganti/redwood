@@ -1,4 +1,4 @@
-BindingPropertyException occurred: Could not initialize binding as it is missing a required property KnockoutExpressionBindingProperty: Method object.ToString() -> string cannot be translated to Javascript. Binding: {value: value(DotVVM.Framework.Configuration.DotvvmConfiguration).ToString()}.
+BindingPropertyException occurred: Could not initialize binding '{value: value(DotVVM.Framework.Configuration.DotvvmConfiguration).ToString()}' as it is missing a required property KnockoutExpressionBindingProperty: Method object.ToString() -> string cannot be translated to Javascript. Binding: {value: value(DotVVM.Framework.Configuration.DotvvmConfiguration).ToString()}.
     at void DotVVM.Framework.Tests.Runtime.RuntimeErrorTests.InitResolverFailure()+() => { }
 
 NotSupportedException occurred: Method object.ToString() -> string cannot be translated to Javascript

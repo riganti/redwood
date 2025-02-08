@@ -11,7 +11,7 @@
 			<!-- ko foreach: { data: Customers()?.PagingOptions()?.NearPageIndexes } -->
 			<li data-bind="css: { active: $data == $parent.Customers()?.PagingOptions()?.PageIndex() }">
 				<!-- ko if: $data != $parent.Customers()?.PagingOptions()?.PageIndex() -->
-				<a data-bind="text: $data + 1" href="javascript:;" onclick="dotvvm.postBack(this,[&quot;Customers()?.PagingOptions()?.NearPageIndexes/[$index]&quot;],&quot;J4s1chtqLBUO+Bt2&quot;,&quot;&quot;,null,[],[],undefined).catch(dotvvm.log.logPostBackScriptError);event.stopPropagation();return false;"></a>
+				<a data-bind="text: $data + 1" href="javascript:;" onclick="dotvvm.postBack(this,[&quot;Customers.PagingOptions.NearPageIndexes/[$index]&quot;],&quot;J4s1chtqLBUO+Bt2&quot;,&quot;&quot;,null,[],[],undefined).catch(dotvvm.log.logPostBackScriptError);event.stopPropagation();return false;"></a>
 				<!-- /ko -->
 				<!-- ko if: $data == $parent.Customers()?.PagingOptions()?.PageIndex() -->
 				<span data-bind="text: $data + 1"></span>

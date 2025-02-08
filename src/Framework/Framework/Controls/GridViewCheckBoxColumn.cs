@@ -1,4 +1,5 @@
 using DotVVM.Framework.Binding;
+using DotVVM.Framework.Binding.Expressions;
 using DotVVM.Framework.Binding.Properties;
 using DotVVM.Framework.Hosting;
 
@@ -13,14 +14,14 @@ namespace DotVVM.Framework.Controls
         /// <summary>
         /// Gets or sets a binding which retrieves the value to display from the current data item.
         /// </summary>
-        [MarkupOptions(AllowHardCodedValue = false, Required = true)]
-        public bool ValueBinding
+        [MarkupOptions(AllowHardCodedValue = false, AllowResourceBinding = true, Required = true)]
+        public IStaticValueBinding ValueBinding
         {
-            get { return (bool)GetValue(ValueBindingProperty)!; }
+            get { return (IStaticValueBinding)GetValueRaw(ValueBindingProperty)!; }
             set { SetValue(ValueBindingProperty, value); }
         }
         public static readonly DotvvmProperty ValueBindingProperty =
-            DotvvmProperty.Register<bool, GridViewCheckBoxColumn>(c => c.ValueBinding);
+            DotvvmProperty.Register<IStaticValueBinding<bool?>, GridViewCheckBoxColumn>(c => c.ValueBinding);
 
         /// <summary> Whether to automatically attach Validator.Value onto the TextBox or add a standalone Validator component. </summary>
         public ValidatorPlacement ValidatorPlacement
@@ -51,9 +52,9 @@ namespace DotVVM.Framework.Controls
             var checkBox = new CheckBox { Enabled = enabled };
             CopyProperty(UITests.NameProperty, checkBox, UITests.NameProperty);
 
-            var valueBinding = GetValueBinding(ValueBindingProperty);
-            checkBox.SetBinding(CheckBox.CheckedProperty, valueBinding);
-            Validator.Place(checkBox, container.Children, valueBinding, ValidatorPlacement);
+            var binding = ValueBinding;
+            checkBox.SetBinding(CheckBox.CheckedProperty, binding);
+            Validator.Place(checkBox, container.Children, binding as IValueBinding, ValidatorPlacement);
             container.Children.Add(checkBox);
         }
 
@@ -61,7 +62,7 @@ namespace DotVVM.Framework.Controls
         {
             if (string.IsNullOrEmpty(SortExpression))
             {
-                return GetValueBinding(ValueBindingProperty)?.GetProperty<OriginalStringBindingProperty>()?.Code ??
+                return GetBinding(ValueBindingProperty)?.GetProperty<OriginalStringBindingProperty>()?.Code ??
                        throw new DotvvmControlException(this, $"The 'ValueBinding' property must be set on the '{GetType()}' control!");
             }
             else

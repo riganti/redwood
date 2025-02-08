@@ -41,7 +41,7 @@ namespace DotVVM.Framework.Compilation
 
             protected override Expression VisitParameter(ParameterExpression node)
             {
-                if (node.GetParameterAnnotation() is { DataContext: { Parent: null } } annotation)
+                if (node.GetParameterAnnotation() is { DataContext: { Parent: null }, ExtensionParameter: null } annotation)
                     UsesViewModel = true;
                 return base.VisitParameter(node);
             }

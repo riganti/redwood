@@ -135,12 +135,31 @@ namespace DotVVM.Framework.Compilation.Binding
                    javascriptTranslator.CompileToJavascript(expression.Expression, dataContext).ApplyAction(a => a.Freeze()));
         }
 
-        public SimplePathExpressionBindingProperty FormatSimplePath(KnockoutJsExpressionBindingProperty expression)
+        public SimplePathExpressionBindingProperty FormatSimplePath(IBinding binding)
         {
-            // if contains api parameter, can't use this as a path
-            if (expression.Expression.DescendantNodes().Any(n => n.TryGetAnnotation(out ViewModelInfoAnnotation? vmInfo) && vmInfo.ExtensionParameter is RestApiRegistrationHelpers.ApiExtensionParameter apiParameter))
-                throw new Exception($"Can't get a path expression for command binding from binding that is using rest api.");
-            return new SimplePathExpressionBindingProperty(expression.Expression.FormatParametrizedScript());
+            if (binding.GetProperty<KnockoutJsExpressionBindingProperty>(ErrorHandlingMode.ReturnNull) is { } js)
+            {
+                // if contains api parameter, can't use this as a path
+                if (js.Expression.DescendantNodes().Any(n => n.TryGetAnnotation(out ViewModelInfoAnnotation? vmInfo) && vmInfo.ExtensionParameter is RestApiRegistrationHelpers.ApiExtensionParameter apiParameter))
+                    throw new Exception($"Can't get a path expression for command binding from binding that is using rest api.");
+                return new(js.Expression.FormatParametrizedScript());
+            }
+            else if (binding.GetProperty<KnockoutExpressionBindingProperty>(ErrorHandlingMode.ReturnNull) is { } expr)
+            {
+                return new(expr.UnwrappedCode);
+            }
+            else if (binding.GetProperty<OriginalStringBindingProperty>(ErrorHandlingMode.ReturnNull) is { } originalString)
+            {
+                return new(new ParametrizedCode(originalString.Code));
+            }
+            else if (binding.GetProperty<ParsedExpressionBindingProperty>(ErrorHandlingMode.ReturnNull) is { } parsedExpression)
+            {
+                return new(new ParametrizedCode(parsedExpression.Expression.ToCSharpString()));
+            }
+            else
+            {
+                throw new Exception($"Can't create path fragment from binding {binding}, it does not have OriginalString, ParsedExpression, nor KnockoutExpression property.");
+            }
         }
 
         public KnockoutExpressionBindingProperty FormatJavascript(KnockoutJsExpressionBindingProperty expression)
@@ -174,12 +193,20 @@ namespace DotVVM.Framework.Compilation.Binding
 
         public ResultTypeBindingProperty GetResultType(ParsedExpressionBindingProperty expression) => new ResultTypeBindingProperty(expression.Expression.Type);
 
-        public ExpectedTypeBindingProperty GetExpectedType(AssignedPropertyBindingProperty? property = null)
+        public ExpectedTypeBindingProperty? GetExpectedType(AssignedPropertyBindingProperty? property = null)
         {
             var prop = property?.DotvvmProperty;
-            if (prop == null) return new ExpectedTypeBindingProperty(typeof(object));
+            if (prop == null) return null;
 
-            return new ExpectedTypeBindingProperty(prop.IsBindingProperty ? (prop.PropertyType.GenericTypeArguments.SingleOrDefault() ?? typeof(object)) : prop.PropertyType);
+            if (prop.IsBindingProperty)
+            {
+                if (prop.PropertyType.GenericTypeArguments.SingleOrDefault() is {} type)
+                    return new ExpectedTypeBindingProperty(type);
+                else
+                    return null;
+            }
+
+            return new ExpectedTypeBindingProperty(prop.PropertyType);
         }
 
         public BindingCompilationRequirementsAttribute GetAdditionalResolversFromProperty(AssignedPropertyBindingProperty property)
@@ -264,9 +291,9 @@ namespace DotVVM.Framework.Compilation.Binding
                 (Expression)Expression.Not(e.Expression)
             ));
         }
-        public ExpectedAsStringBindingExpression ExpectAsStringBinding(ParsedExpressionBindingProperty e, ExpectedTypeBindingProperty expectedType, IBinding binding)
+        public ExpectedAsStringBindingExpression ExpectAsStringBinding(ParsedExpressionBindingProperty e, IBinding binding, ExpectedTypeBindingProperty? expectedType = null)
         {
-            if (expectedType.Type == typeof(string))
+            if (expectedType is {} && expectedType.Type == typeof(string))
                 return new(binding);
 
             return new(binding.DeriveBinding(new ExpectedTypeBindingProperty(typeof(string)), e));
@@ -425,11 +452,12 @@ namespace DotVVM.Framework.Compilation.Binding
             return new ThisBindingProperty(thisBinding);
         }
 
-        public CollectionElementDataContextBindingProperty GetCollectionElementDataContext(DataContextStack dataContext, ResultTypeBindingProperty resultType)
+        public CollectionElementDataContextBindingProperty GetCollectionElementDataContext(DataContextStack dataContext, ResultTypeBindingProperty resultType, IBinding binding)
         {
             return new CollectionElementDataContextBindingProperty(DataContextStack.CreateCollectionElement(
                 ReflectionUtils.GetEnumerableType(resultType.Type).NotNull(),
-                dataContext
+                parent: dataContext,
+                serverSideOnly: binding is not IValueBinding
             ));
         }
 
@@ -440,7 +468,7 @@ namespace DotVVM.Framework.Compilation.Binding
             ));
         }
 
-        public ReferencedViewModelPropertiesBindingProperty GetReferencedViewModelProperties(IValueBinding binding, ParsedExpressionBindingProperty expression)
+        public ReferencedViewModelPropertiesBindingProperty GetReferencedViewModelProperties(IStaticValueBinding binding, ParsedExpressionBindingProperty expression)
         {
             var allProperties = new List<PropertyInfo>();
             var expr = expression.Expression;
@@ -455,7 +483,7 @@ namespace DotVVM.Framework.Compilation.Binding
             expr = ExpressionHelper.UnwrapPassthroughOperations(expr);
 
             var mainProperty = (expr as MemberExpression)?.Member as PropertyInfo;
-            var unwrappedBinding = binding.DeriveBinding(expr);
+            var unwrappedBinding = (binding as IValueBinding)?.DeriveBinding(expr);
 
             return new(
                 mainProperty,
