@@ -21,12 +21,29 @@ export function getErrors<T>(o: KnockoutObservable<T> | null): ValidationError[]
 export class ValidationError {
 
     private constructor(public errorMessage: string, public propertyPath: string, public validatedObservable: KnockoutObservable<any>) {
-    }
-
-    public static attach(errorMessage: string, propertyPath: string, observable: KnockoutObservable<any>): ValidationError {
         if (!errorMessage) {
             throw new Error(`String "${errorMessage}" is not a valid ValidationError message.`);
         }
+    }
+
+    public static attach(errorMessage: string, propertyPath: string, observable: KnockoutObservable<any>): ValidationError {
+        let unwrapped = ValidationError.getOrCreateErrorsCollection(observable);
+        const error = new ValidationError(errorMessage, propertyPath, unwrapped);
+        unwrapped[errorsSymbol].push(error);
+        allErrors.push(error);
+        return error;
+    }
+
+    static attachIfNoErrors(errorMessage: string, propertyPath: string, observable: KnockoutObservable<any>) {
+        let unwrapped = ValidationError.getOrCreateErrorsCollection(observable);
+        if (unwrapped[errorsSymbol].length === 0) {
+            const error = new ValidationError(errorMessage, propertyPath, unwrapped);
+            unwrapped[errorsSymbol].push(error);
+            allErrors.push(error);
+        }
+    }
+
+    private static getOrCreateErrorsCollection(observable: KnockoutObservable<any>): KnockoutObservable<any> & { [errorsSymbol]: ValidationError[] } {
         if (!observable) {
             throw new Error(`ValidationError cannot be attached to "${observable}".`);
         }
@@ -35,10 +52,7 @@ export class ValidationError {
         if (!unwrapped.hasOwnProperty(errorsSymbol)) {
             unwrapped[errorsSymbol] = [];
         }
-        const error = new ValidationError(errorMessage, propertyPath, unwrapped);
-        unwrapped[errorsSymbol].push(error);
-        allErrors.push(error);
-        return error;
+        return unwrapped;
     }
 
     public detach(): void {

@@ -94,6 +94,7 @@ namespace DotVVM.Samples.Tests.Feature
 
                 var button = browser.First("input[type=button]");
                 var textBoxes = browser.FindElements("input[type=text]").ThrowIfDifferentCountThan(5);
+                var validators = browser.FindElements("span[data-control=validator]").ThrowIfDifferentCountThan(5);
 
                 void testValue(string value)
                 {
@@ -103,37 +104,38 @@ namespace DotVVM.Samples.Tests.Feature
                     }
                     button.Click();
                 }
-                void assertValidators(params bool[] states)
+                void assertValidators(params string[] errors)
                 {
-                    if (states.Length != textBoxes.Count)
+                    if (errors.Length != textBoxes.Count)
                     {
-                        throw new ArgumentException("states");
+                        throw new ArgumentException("errors");
                     }
 
                     for (int i = 0; i < textBoxes.Count; i++)
                     {
-                        if (states[i])
+                        if (!string.IsNullOrEmpty(errors[i]))
                         {
                             AssertUI.HasClass(textBoxes[i], "has-error");
                         }
                         else
                         {
                             AssertUI.HasNotClass(textBoxes[i], "has-error");
+                            AssertUI.TextEquals(validators[i], errors[i]);
                         }
                     }
                 }
 
                 // empty field - Required validators should be triggered
                 testValue("");
-                assertValidators(false, false, true, true, true);
+                assertValidators("", "", "The Value3 field is required.", "Cannot coerce 'null' to type 'DateTime'.", "The Value5 field is required.");
 
                 // correct value - no error
                 testValue("06/14/2017 8:10:35 AM");
-                assertValidators(false, false, false, false, false);
+                assertValidators("", "", "", "", "");
 
                 // incorrect format - all fields should trigger errors except the one where DotvvmClientFormat is disabled
                 testValue("06-14-2017");
-                assertValidators(false, true, true, true, true);
+                assertValidators("", "The field Value2 is invalid.", "The Value3 field is required. The field Value3 is invalid.", "The field Value4 is invalid.", "The field Value5 is invalid.");
             });
         }
 

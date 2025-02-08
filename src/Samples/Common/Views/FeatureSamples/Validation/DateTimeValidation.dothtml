@@ -16,22 +16,27 @@
     <p>
         Nullable DateTime with disabled DotvvmClientFormat:
         <dot:TextBox Validator.InvalidCssClass="has-error" Text="{value: Value1}" Validator.Value="{value:  Value1}" />
+        <dot:Validator Value="{value: Value1}" ShowErrorMessageText="true" data-control="validator" />
     </p>
     <p>
         Nullable DateTime:
         <dot:TextBox Validator.InvalidCssClass="has-error" Text="{value: Value2}" Validator.Value="{value:  Value2}" />
+        <dot:Validator Value="{value: Value2}" ShowErrorMessageText="true" data-control="validator" />
     </p>
     <p>
         Nullable DateTime with Required:
         <dot:TextBox Validator.InvalidCssClass="has-error" Text="{value: Value3}" Validator.Value="{value:  Value3}" />
+        <dot:Validator Value="{value: Value3}" ShowErrorMessageText="true" data-control="validator" />
     </p>
     <p>
         Non-nullable:
         <dot:TextBox Validator.InvalidCssClass="has-error" Text="{value: Value4}" Validator.Value="{value:  Value4}" />
+        <dot:Validator Value="{value: Value4}" ShowErrorMessageText="true" data-control="validator" />
     </p>
     <p>
         Non-nullable with Required:
         <dot:TextBox Validator.InvalidCssClass="has-error" Text="{value: Value5}" Validator.Value="{value:  Value5}" />
+        <dot:Validator Value="{value: Value5}" ShowErrorMessageText="true" data-control="validator" />
     </p>
     <dot:Button Text="Validate" Click="{command: ValidateRequiredDateTime()}" ID="ValidateButton" />
 </body>

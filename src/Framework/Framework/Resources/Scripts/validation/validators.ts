@@ -5,8 +5,22 @@ export type DotvvmValidator = {
 }
 
 export const required: DotvvmValidator = {
-    isValid(value: any): boolean {
-        return !isEmpty(value);
+    isValid(value: any, context, property): boolean {
+        if (isEmpty(value)) {
+            return false;
+        }
+
+        // for value types, the observable may still hold the previous value - we need to look at element states if there is any element with invalid state and empty value
+        const metadata = getValidationMetadata(property);
+        if (metadata) {
+            for (const metaElement of metadata) {
+                if (!metaElement.elementValidationState && "value" in metaElement.element && isEmpty((metaElement.element as any)["value"])) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }
 export const regex: DotvvmValidator = {
@@ -33,8 +47,12 @@ export const enforceClientFormat: DotvvmValidator = {
         const metadata = getValidationMetadata(property);
         if (metadata) {
             for (const metaElement of metadata) {
-                if (!metaElement.elementValidationState) {
-                    valid = false;
+                if (!metaElement.elementValidationState && "value" in metaElement.element) {
+                    // do not emit the error if the element value is empty and it is allowed to be empty
+                    const elementValue = (metaElement.element as any).value as string;
+                    if ((!allowEmptyStringOrWhitespaces && isEmpty(elementValue)) || (!allowEmptyString && elementValue === "") || !isEmpty(elementValue)) {
+                        valid = false;
+                    }
                 }
             }
         }

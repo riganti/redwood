@@ -176,7 +176,7 @@ function validateRecursive(observable: KnockoutObservable<any>, propertyValue: a
     }
     const lastSetError: CoerceResult = (observable as any)[lastSetErrorSymbol];
     if (lastSetError && lastSetError.isError) {
-        ValidationError.attach(lastSetError.message, propertyPath, observable);
+        ValidationError.attachIfNoErrors(lastSetError.message, propertyPath, observable);
     }
     
     if (Array.isArray(type)) {
