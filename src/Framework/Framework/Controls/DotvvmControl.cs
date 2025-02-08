@@ -233,16 +233,19 @@ namespace DotVVM.Framework.Controls
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected static bool TouchProperty(DotvvmProperty property, object? val, ref RenderState r)
+        protected static bool TouchProperty(DotvvmPropertyId property, object? val, ref RenderState r)
         {
-            if (property == DotvvmControl.IncludeInPageProperty)
+            if (property == DotvvmControl.IncludeInPageProperty.Id)
                 r.IncludeInPage = val;
-            else if (property == DotvvmControl.DataContextProperty)
+            else if (property == DotvvmControl.DataContextProperty.Id)
                 r.DataContext = val as IValueBinding;
-            else if (property is ActiveDotvvmProperty)
-                r.HasActives = true;
-            else if (property is GroupedDotvvmProperty groupedProperty && groupedProperty.PropertyGroup is ActiveDotvvmPropertyGroup)
-                r.HasActiveGroups = true;
+            else if (DotvvmPropertyIdAssignment.IsActive(property))
+            {
+                if (property.IsPropertyGroup)
+                    r.HasActiveGroups = true;
+                else
+                    r.HasActives = true;
+            }
             else return false;
             return true;
         }
@@ -265,20 +268,20 @@ namespace DotVVM.Framework.Controls
 
             if (r.HasActives) foreach (var item in properties)
             {
-                if (item.Key is ActiveDotvvmProperty activeProp)
+                if (!item.Key.IsPropertyGroup && DotvvmPropertyIdAssignment.IsActive(item.Key))
                 {
-                    activeProp.AddAttributesToRender(writer, context, this);
+                    ((ActiveDotvvmProperty)item.Key.PropertyInstance).AddAttributesToRender(writer, context, this);
                 }
             }
 
             if (r.HasActiveGroups)
             {
                 var groups = properties
-                    .Where(p => p.Key is GroupedDotvvmProperty gp && gp.PropertyGroup is ActiveDotvvmPropertyGroup)
-                    .GroupBy(p => ((GroupedDotvvmProperty)p.Key).PropertyGroup);
+                    .Where(p => p.Key.PropertyGroupInstance is ActiveDotvvmPropertyGroup)
+                    .GroupBy(p => (ActiveDotvvmPropertyGroup)p.Key.PropertyGroupInstance!);
                 foreach (var item in groups)
                 {
-                    ((ActiveDotvvmPropertyGroup)item.Key).AddAttributesToRender(writer, context, this, item.Select(i => i.Key));
+                    item.Key.AddAttributesToRender(writer, context, this, item.Select(i => i.Key.PropertyInstance));
                 }
             }
 

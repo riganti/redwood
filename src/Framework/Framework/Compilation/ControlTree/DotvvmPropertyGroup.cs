@@ -10,6 +10,7 @@ using DotVVM.Framework.Utils;
 using System.Runtime.CompilerServices;
 using System.Collections.Immutable;
 using System.Threading;
+using DotVVM.Framework.Binding.Expressions;
 
 namespace DotVVM.Framework.Compilation.ControlTree
 {
@@ -39,8 +40,10 @@ namespace DotVVM.Framework.Compilation.ControlTree
         public Type PropertyType { get; }
         ITypeDescriptor IControlAttributeDescriptor.PropertyType => new ResolvedTypeDescriptor(PropertyType);
         public IAttributeValueMerger? ValueMerger { get; }
+        public bool IsBindingProperty { get; }
+        internal ushort Id { get; }
 
-        private ConcurrentDictionary<string, GroupedDotvvmProperty> generatedProperties = new();
+        private readonly ConcurrentDictionary<ushort, WeakReference<GroupedDotvvmProperty>> generatedProperties = new();
 
         /// <summary> The capability which declared this property. When the property is declared by an capability, it can only be used by this capability. </summary>
         public DotvvmCapabilityProperty? OwningCapability { get; }
@@ -62,7 +65,9 @@ namespace DotVVM.Framework.Compilation.ControlTree
             {
                 ValueMerger = (IAttributeValueMerger?)Activator.CreateInstance(MarkupOptions.AttributeValueMerger);
             }
+            this.IsBindingProperty = typeof(IBinding).IsAssignableFrom(valueType);
             this.OwningCapability = owningCapability;
+            this.Id = DotvvmPropertyIdAssignment.RegisterPropertyGroup(this);
         }
 
         private static (MarkupOptionsAttribute, DataContextChangeAttribute[], DataContextStackManipulationAttribute?, ObsoleteAttribute?)
@@ -93,7 +98,32 @@ namespace DotVVM.Framework.Compilation.ControlTree
         IPropertyDescriptor IPropertyGroupDescriptor.GetDotvvmProperty(string name) => GetDotvvmProperty(name);
         public GroupedDotvvmProperty GetDotvvmProperty(string name)
         {
-            return generatedProperties.GetOrAdd(name, n => GroupedDotvvmProperty.Create(this, name));
+            var id = DotvvmPropertyIdAssignment.GetGroupMemberId(name, registerIfNotFound: true);
+            return GetDotvvmProperty(id);
+        }
+
+        public GroupedDotvvmProperty GetDotvvmProperty(ushort nameId)
+        {
+            while (true)
+            {
+                if (generatedProperties.TryGetValue(nameId, out var resultRef))
+                {
+                    if (resultRef.TryGetTarget(out var result))
+                        return result;
+                    else
+                        generatedProperties.TryUpdate(nameId, new(CreateMemberProperty(nameId)), resultRef);
+                }
+                else
+                {
+                    generatedProperties.TryAdd(nameId, new(CreateMemberProperty(nameId)));
+                }
+            }
+        }
+
+        private GroupedDotvvmProperty CreateMemberProperty(ushort nameId)
+        {
+            var name = DotvvmPropertyIdAssignment.GetGroupMemberName(nameId).NotNull();
+            return GroupedDotvvmProperty.Create(this, name, nameId);
         }
 
         private static ConcurrentDictionary<(Type, string), DotvvmPropertyGroup> descriptorDictionary = new();

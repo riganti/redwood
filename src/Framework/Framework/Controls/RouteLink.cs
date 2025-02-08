@@ -139,6 +139,7 @@ namespace DotVVM.Framework.Controls
             if (GetValue<bool?>(EnabledProperty) == false)
             {
                 writer.AddAttribute("disabled", "disabled");
+                // this.CssClasses["a"] = true;
 
                 if (enabledBinding is null)
                     WriteEnabledBinding(writer, false);

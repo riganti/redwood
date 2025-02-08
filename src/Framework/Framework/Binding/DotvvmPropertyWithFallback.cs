@@ -16,7 +16,7 @@ namespace DotVVM.Framework.Binding
         /// </summary>
         public DotvvmProperty FallbackProperty { get; private set; }
 
-        public DotvvmPropertyWithFallback(DotvvmProperty fallbackProperty)
+        public DotvvmPropertyWithFallback(DotvvmProperty fallbackProperty, string name, Type declaringType, bool isValueInherited): base(name, declaringType, isValueInherited)
         {
             this.FallbackProperty = fallbackProperty;
         }
@@ -61,7 +61,7 @@ namespace DotVVM.Framework.Binding
         /// <param name="isValueInherited">Indicates whether the value can be inherited from the parent controls.</param>
         public static DotvvmPropertyWithFallback Register<TPropertyType, TDeclaringType>(string propertyName, DotvvmProperty fallbackProperty, bool isValueInherited = false)
         {
-            var property = new DotvvmPropertyWithFallback(fallbackProperty);
+            var property = new DotvvmPropertyWithFallback(fallbackProperty, propertyName, typeof(TDeclaringType), isValueInherited: isValueInherited);
             Register<TPropertyType, TDeclaringType>(propertyName, isValueInherited: isValueInherited, property: property);
             property.DefaultValue = fallbackProperty.DefaultValue;
             return property;

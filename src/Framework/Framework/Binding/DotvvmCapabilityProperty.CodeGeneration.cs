@@ -105,8 +105,10 @@ namespace DotVVM.Framework.Binding
                         valueParameter
                     )
                 );
-
             }
+
+            static readonly ConstructorInfo DotvvmPropertyIdConstructor = typeof(DotvvmPropertyId).GetConstructor(new [] { typeof(uint) }).NotNull();
+
             public static (LambdaExpression getter, LambdaExpression setter) CreatePropertyAccessors(Type type, DotvvmProperty property)
             {
                 if (property is DotvvmPropertyAlias propertyAlias)
@@ -114,27 +116,31 @@ namespace DotVVM.Framework.Binding
 
                 // if the property does not override GetValue/SetValue, we'll use
                 // control.properties dictionary directly to avoid virtual method calls
-                var canUseDirectAccess =
-                    !property.IsValueInherited && (
-                    property.GetType() == typeof(DotvvmProperty) ||
-                    property.GetType().GetMethod(nameof(DotvvmProperty.GetValue), new [] { typeof(DotvvmBindableObject), typeof(bool) })!.DeclaringType == typeof(DotvvmProperty) &&
-                    property.GetType().GetMethod(nameof(DotvvmProperty.SetValue), new [] { typeof(DotvvmBindableObject), typeof(object) })!.DeclaringType == typeof(DotvvmProperty));
+                var canUseDirectAccess = !property.IsValueInherited && DotvvmPropertyIdAssignment.TypeCanUseAnyDirectAccess(property.GetType());
 
                 var valueParameter = Expression.Parameter(type, "value");
                 var unwrappedType = type.UnwrapNullableType();
 
+                var defaultObj = TypeConversion.BoxToObject(Constant(property.DefaultValue));
+                // try to access the readonly static field, as .NET can optimize that better than whatever Linq.Expression Constant compiles to
+                var propertyExpr =
+                    property.AttributeProvider is FieldInfo field && field.IsStatic && field.IsInitOnly && field.GetValue(null) == property
+                        ? Field(null, field)
+                        : (Expression)Constant(property);
+                var propertyIdExpr = New(DotvvmPropertyIdConstructor, Constant(property.Id.Id, typeof(uint)));
+
                 var boxedValueParameter = TypeConversion.BoxToObject(valueParameter);
                 var setValueRaw =
                     canUseDirectAccess
-                        ? Call(typeof(Helpers), nameof(Helpers.SetValueDirect), Type.EmptyTypes, currentControlParameter, Constant(property), boxedValueParameter)
-                        : Call(currentControlParameter, nameof(DotvvmBindableObject.SetValueRaw), Type.EmptyTypes, Constant(property), boxedValueParameter);
+                        ? Call(typeof(Helpers), nameof(Helpers.SetValueDirect), Type.EmptyTypes, currentControlParameter, propertyIdExpr, defaultObj, boxedValueParameter)
+                        : Call(currentControlParameter, nameof(DotvvmBindableObject.SetValueRaw), Type.EmptyTypes, propertyExpr, boxedValueParameter);
 
                 if (typeof(IBinding).IsAssignableFrom(type))
                 {
                     var getValueRaw =
                         canUseDirectAccess
-                            ? Call(typeof(Helpers), nameof(Helpers.GetValueRawDirect), Type.EmptyTypes, currentControlParameter, Constant(property))
-                            : Call(currentControlParameter, nameof(DotvvmBindableObject.GetValueRaw), Type.EmptyTypes, Constant(property), Constant(property.IsValueInherited));
+                            ? Call(typeof(Helpers), nameof(Helpers.GetValueRawDirect), Type.EmptyTypes, currentControlParameter, propertyIdExpr, defaultObj)
+                            : Call(currentControlParameter, nameof(DotvvmBindableObject.GetValueRaw), Type.EmptyTypes, propertyExpr, Constant(property.IsValueInherited));
                     return (
                         Lambda(
                             Convert(getValueRaw, type),
@@ -173,11 +179,17 @@ namespace DotVVM.Framework.Binding
                             Expression.Call(
                                 getValueOrBindingMethod,
                                 currentControlParameter,
-                                Constant(property)),
+                                canUseDirectAccess ? propertyIdExpr : propertyExpr,
+                                defaultObj),
                             currentControlParameter
                         ),
                         Expression.Lambda(
-                            Expression.Call(setValueOrBindingMethod, currentControlParameter, Expression.Constant(property), valueParameter),
+                            Expression.Call(
+                                setValueOrBindingMethod,
+                                currentControlParameter,
+                                canUseDirectAccess ? propertyIdExpr : propertyExpr,
+                                defaultObj,
+                                valueParameter),
                             currentControlParameter, valueParameter
                         )
                     );
@@ -191,13 +203,13 @@ namespace DotVVM.Framework.Binding
                     Expression getValue;
                     if (canUseDirectAccess && unwrappedType.IsValueType)
                     {
-                        getValue = Call(typeof(Helpers), nameof(Helpers.GetStructValueDirect), new Type[] { unwrappedType }, currentControlParameter, Constant(property));
+                        getValue = Call(typeof(Helpers), nameof(Helpers.GetStructValueDirect), [ unwrappedType ], currentControlParameter, propertyIdExpr, Constant(property.DefaultValue, type.MakeNullableType()));
                         if (!type.IsNullable())
                             getValue = Expression.Property(getValue, "Value");
                     }
                     else
                     {
-                        getValue = Call(currentControlParameter, getValueMethod, Constant(property), Constant(property.IsValueInherited));
+                        getValue = Call(currentControlParameter, getValueMethod, propertyExpr, Constant(property.IsValueInherited));
                         getValue = Convert(getValue, type);
                     }
                     return (

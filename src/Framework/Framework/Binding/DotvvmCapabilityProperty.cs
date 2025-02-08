@@ -45,13 +45,9 @@ namespace DotVVM.Framework.Binding
             Type declaringType,
             ICustomAttributeProvider? attributeProvider,
             DotvvmCapabilityProperty? declaringCapability
-        ): base()
+        ): base(name ?? prefix + type.Name, declaringType, isValueInherited: false)
         {
-            name ??= prefix + type.Name;
-
-            this.Name = name;
             this.PropertyType = type;
-            this.DeclaringType = declaringType;
             this.Prefix = prefix;
             this.AddUsedInCapability(declaringCapability);
 
@@ -63,14 +59,15 @@ namespace DotVVM.Framework.Binding
 
             AssertPropertyNotDefined(this, postContent: false);
 
-            var dotnetFieldName = ToPascalCase(name.Replace("-", "_").Replace(":", "_"));
+            var dotnetFieldName = ToPascalCase(Name.Replace("-", "_").Replace(":", "_"));
             attributeProvider ??=
                 declaringType.GetProperty(dotnetFieldName) ??
                 declaringType.GetField(dotnetFieldName) ??
                 (ICustomAttributeProvider?)declaringType.GetField(dotnetFieldName + "Property") ??
-                throw new Exception($"Capability backing field could not be found and capabilityAttributeProvider argument was not provided. Property: {declaringType.Name}.{name}. Please declare a field or property named {dotnetFieldName}.");
+                throw new Exception($"Capability backing field could not be found and capabilityAttributeProvider argument was not provided. Property: {declaringType.Name}.{Name}. Please declare a field or property named {dotnetFieldName}.");
 
             DotvvmProperty.InitializeProperty(this, attributeProvider);
+            this.MarkupOptions._mappingMode ??= MappingMode.Exclude;
         }
 
         public override object GetValue(DotvvmBindableObject control, bool inherit = true) => Getter(control);
@@ -200,15 +197,8 @@ namespace DotVVM.Framework.Binding
         {
             var declaringType = property.DeclaringType.NotNull();
             var capabilityType = property.PropertyType.NotNull();
-            var name = property.Name.NotNull();
             AssertPropertyNotDefined(property);
-            var attributes = new CustomAttributesProvider(
-                new MarkupOptionsAttribute
-                {
-                    MappingMode = MappingMode.Exclude
-                }
-            );
-            DotvvmProperty.Register(name, capabilityType, declaringType, DBNull.Value, false, property, attributes);
+            DotvvmProperty.Register(property);
             if (!capabilityRegistry.TryAdd((declaringType, capabilityType, property.Prefix), property))
                 throw new($"unhandled naming conflict when registering capability {capabilityType}.");
             capabilityListRegistry.AddOrUpdate(
