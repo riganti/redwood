@@ -31,7 +31,7 @@ namespace DotVVM.Framework.Tests.Runtime
 
         private static ErrorFormatter CreateFormatter()
         {
-            var errorFormatter = ErrorFormatter.CreateDefault();
+            var errorFormatter = ErrorFormatter.CreateDefault(config);
             return errorFormatter;
         }
 

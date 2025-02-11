@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
+using DotVVM.Framework.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace DotVVM.Framework.Hosting.ErrorPages
@@ -13,11 +14,13 @@ namespace DotVVM.Framework.Hosting.ErrorPages
     public class DotvvmErrorPageRenderer
     {
         private readonly ILogger<DotvvmErrorPageRenderer>? logger;
+        private readonly DotvvmConfiguration config;
 
         public ErrorFormatter? Formatter { get; set; }
 
-        public DotvvmErrorPageRenderer(ILogger<DotvvmErrorPageRenderer>? logger = null)
+        public DotvvmErrorPageRenderer(DotvvmConfiguration config, ILogger<DotvvmErrorPageRenderer>? logger = null)
         {
+            this.config = config;
             this.logger = logger;
         }
 
@@ -62,7 +65,7 @@ namespace DotVVM.Framework.Hosting.ErrorPages
 
         private ErrorFormatter CreateDefaultWithDemystifier()
         {
-            var errorFormatter = ErrorFormatter.CreateDefault();
+            var errorFormatter = ErrorFormatter.CreateDefault(config);
 
             var insertPosition = errorFormatter.Formatters.Count > 0 ? 1 : 0;
 

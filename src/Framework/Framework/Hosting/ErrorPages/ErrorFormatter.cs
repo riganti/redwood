@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using DotVVM.Framework.Binding;
 using DotVVM.Framework.Binding.Expressions;
 using DotVVM.Framework.Compilation;
+using DotVVM.Framework.Configuration;
 using DotVVM.Framework.Controls;
 using DotVVM.Framework.Runtime;
 using DotVVM.Framework.Runtime.Commands;
@@ -386,7 +387,9 @@ namespace DotVVM.Framework.Hosting.ErrorPages
         }
 
 
-        public static ErrorFormatter CreateDefault()
+        public static ErrorFormatter CreateDefault() => CreateDefault(null);
+
+        public static ErrorFormatter CreateDefault(DotvvmConfiguration? config)
         {
             var f = new ErrorFormatter();
             f.Formatters.Add((e, o) => DotvvmMarkupErrorSection.Create(e));
@@ -462,7 +465,7 @@ namespace DotVVM.Framework.Hosting.ErrorPages
                     return null;
                 return new ExceptionAdditionalInfo(
                     "Control Hierarchy",
-                    control.GetAllAncestors(includingThis: true).Select(c => c.DebugString(useHtml: true, multiline: false)).ToArray(),
+                    control.GetAllAncestors(includingThis: true).Select(c => c.DebugString(config: config, useHtml: true, multiline: false)).ToArray(),
                     ExceptionAdditionalInfo.DisplayMode.ToHtmlListUnencoded
                 );
             });

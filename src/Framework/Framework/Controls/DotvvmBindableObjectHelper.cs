@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
@@ -484,13 +485,23 @@ namespace DotVVM.Framework.Controls
 
             return toStringed;
         }
-
         internal static (string? prefix, string tagName) FormatControlName(DotvvmBindableObject control, DotvvmConfiguration? config)
         {
             var type = control.GetType();
             if (type == typeof(HtmlGenericControl))
                 return (null, ((HtmlGenericControl)control).TagName!);
+
+            if (control is DotvvmMarkupControl && control.GetValue(Internal.MarkupFileNameProperty, inherit: false) is string markupFileName)
+                return FormatMarkupControlName(markupFileName, config);
             return FormatControlName(type, config);
+        }
+        internal static (string? prefix, string tagName) FormatMarkupControlName(string fileName, DotvvmConfiguration? config)
+        {
+            var reg = config?.Markup.Controls.FirstOrDefault(c => c.Src?.Replace('\\', '/') == fileName.Replace('\\', '/'));
+            if (reg is { TagName.Length: >0 })
+                return (reg.TagPrefix, reg.TagName);
+            else
+                return (null, Path.GetFileNameWithoutExtension(fileName));
         }
         internal static (string? prefix, string tagName) FormatControlName(Type type, DotvvmConfiguration? config)
         {
