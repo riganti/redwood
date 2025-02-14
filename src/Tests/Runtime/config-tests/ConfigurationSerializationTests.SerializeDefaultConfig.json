@@ -1629,6 +1629,22 @@
         "onlyHardcoded": true
       }
     },
+    "DotVVM.Framework.Controls.Timer": {
+      "Command": {
+        "type": "DotVVM.Framework.Binding.Expressions.ICommandBinding, DotVVM.Framework",
+        "required": true,
+        "onlyBindings": true
+      },
+      "Enabled": {
+        "type": "System.Boolean",
+        "defaultValue": true
+      },
+      "Interval": {
+        "type": "System.Int32",
+        "defaultValue": 30000,
+        "onlyHardcoded": true
+      }
+    },
     "DotVVM.Framework.Controls.UITests": {
       "GenerateStub": {
         "type": "System.Boolean",
@@ -2326,6 +2342,9 @@
     "DotVVM.Framework.Controls.TextBox": {
       "baseType": "DotVVM.Framework.Controls.HtmlGenericControl, DotVVM.Framework",
       "withoutContent": true
+    },
+    "DotVVM.Framework.Controls.Timer": {
+      "baseType": "DotVVM.Framework.Controls.DotvvmControl, DotVVM.Framework"
     },
     "DotVVM.Framework.Controls.UpdateProgress": {
       "baseType": "DotVVM.Framework.Controls.HtmlGenericControl, DotVVM.Framework"
