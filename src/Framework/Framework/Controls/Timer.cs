@@ -18,7 +18,7 @@ namespace DotVVM.Framework.Controls
         [MarkupOptions(AllowHardCodedValue = false, Required = true)]
         public ICommandBinding Command
         {
-            get { return (ICommandBinding)GetValue(CommandProperty); }
+            get { return (ICommandBinding)GetValue(CommandProperty)!; }
             set { SetValue(CommandProperty, value); }
         }
         public static readonly DotvvmProperty CommandProperty
@@ -30,7 +30,7 @@ namespace DotVVM.Framework.Controls
         [MarkupOptions(AllowBinding = false)]
         public int Interval
         {
-            get { return (int)GetValue(IntervalProperty); }
+            get { return (int)GetValue(IntervalProperty)!; }
             set { SetValue(IntervalProperty, value); }
         }
         public static readonly DotvvmProperty IntervalProperty
@@ -41,7 +41,7 @@ namespace DotVVM.Framework.Controls
         /// </summary>
         public bool Enabled
         {
-            get { return (bool)GetValue(EnabledProperty); }
+            get { return (bool)GetValue(EnabledProperty)!; }
             set { SetValue(EnabledProperty, value); }
         }
         public static readonly DotvvmProperty EnabledProperty
