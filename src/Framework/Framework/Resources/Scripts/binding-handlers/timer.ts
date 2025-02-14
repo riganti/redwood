@@ -4,10 +4,10 @@
     command: () => Promise<DotvvmAfterPostBackEventArgs>
 }
 
-ko.virtualElements.allowedBindings["timer"] = true;
+ko.virtualElements.allowedBindings["dotvvm-timer"] = true;
 
 export default {
-    "timer": {
+    "dotvvm-timer": {
         init: (element: HTMLElement, valueAccessor: () => TimerProps) => {
             const prop = valueAccessor();
             let timer: number | null = null;

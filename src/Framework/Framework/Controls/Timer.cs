@@ -59,7 +59,7 @@ namespace DotVVM.Framework.Controls
             group.Add("command", KnockoutHelper.GenerateClientPostbackLambda("Command", Command, this));
             group.Add("interval", Interval.ToString());
             group.Add("enabled", this, EnabledProperty);
-            writer.WriteKnockoutDataBindComment("timer", group.ToString());
+            writer.WriteKnockoutDataBindComment("dotvvm-timer", group.ToString());
 
             base.RenderBeginTag(writer, context);
         }
