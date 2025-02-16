@@ -1354,6 +1354,17 @@ namespace DotVVM.Framework.Tests.Binding
             var result = ExecuteBinding("Strings.SomeResource", new[] { new NamespaceImport("DotVVM.Framework.Tests.Ambiguous"), new NamespaceImport("DotVVM.Framework.Tests") }, new TestViewModel());
             Assert.AreEqual("hello", result);
         }
+
+        [TestMethod]
+        public void BindingCompiler_InitOnlyPropertyCannotBeAsigned()
+        {
+            var vm = new TestViewModelWithInitOnlyProperties() {  MyProperty = 999 };
+
+            var exception = XAssert.ThrowsAny<Exception>(() => ExecuteBinding("_this.MyProperty = 1", vm));
+            XAssert.Contains("Property 'TestViewModelWithInitOnlyProperties.MyProperty' is init-only", exception.Message);
+
+            Assert.AreEqual(999, vm.MyProperty);
+        }
     }
     public class TestViewModel
     {
@@ -1572,6 +1583,11 @@ namespace DotVVM.Framework.Tests.Binding
 
         public List<int> List { get; set; } = new List<int>() { 1, 2, 3 };
         public int[] Array { get; set; } = new int[] { 1, 2, 3 };
+    }
+
+    public class TestViewModelWithInitOnlyProperties
+    {
+        public int MyProperty { get; init; }
     }
 
     public struct TestStruct

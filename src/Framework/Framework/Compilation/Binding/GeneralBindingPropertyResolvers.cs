@@ -58,6 +58,10 @@ namespace DotVVM.Framework.Compilation.Binding
         {
             var replacementVisitor = new BindingCompiler.ParameterReplacementVisitor(dataContext);
             var expr = replacementVisitor.Visit(expression.Expression);
+            var initOnlyPropertyChecker = binding is IStaticCommandBinding
+                                        ? InitOnlyPropertyCheckingVisitor.InstanceDynamicError // allow this client-side
+                                        : InitOnlyPropertyCheckingVisitor.Instance;
+            expr = initOnlyPropertyChecker.Visit(expr);
             expr = new ExpressionNullPropagationVisitor(e => true).Visit(expr);
             expr = ExpressionUtils.ConvertToObject(expr);
             expr = replacementVisitor.WrapExpression(expr, contextObject: binding);
