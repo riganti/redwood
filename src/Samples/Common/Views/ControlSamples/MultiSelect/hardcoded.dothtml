@@ -26,5 +26,7 @@
         </dot:Repeater>
     </div>
     <dot:Literal Text="{value: ChangedCount}" data-ui="changed-count"></dot:Literal>
+
+    <dot:Button data-ui="change-from-server" Text="Set from server" Click="{command: ChangeSelectionHardcoded()}" />
 </body>
 </html>

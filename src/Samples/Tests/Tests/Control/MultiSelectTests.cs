@@ -36,6 +36,19 @@ namespace DotVVM.Samples.Tests.Control
                 multiselect.Children[0].Click();
                 multiselect.Children[1].Click();
                 AssertUI.InnerTextEquals(selectedValues, "Napajedla");
+
+                // select first two options
+                multiselect.Children[0].Click();
+                multiselect.Children[1].Click();
+                multiselect.Children[2].Click();
+                AssertUI.InnerTextEquals(selectedValues, "Praha Brno");
+
+                // change selection from the server
+                browser.First("change-from-server", SelectByDataUi).Click();
+                AssertUI.IsNotSelected(multiselect.Children[0]);
+                AssertUI.IsSelected(multiselect.Children[1]);
+                AssertUI.IsSelected(multiselect.Children[2]);
+                AssertUI.InnerTextEquals(selectedValues, "Brno Napajedla");
             });
         }
 
@@ -63,6 +76,19 @@ namespace DotVVM.Samples.Tests.Control
                 multiselect.Children[0].Click();
                 multiselect.Children[1].Click();
                 AssertUI.InnerTextEquals(selectedValues, "3");
+
+                // select first two options
+                multiselect.Children[0].Click();
+                multiselect.Children[1].Click();
+                multiselect.Children[2].Click();
+                AssertUI.InnerTextEquals(selectedValues, "1 2");
+
+                // change selection from the server
+                browser.First("change-from-server", SelectByDataUi).Click();
+                AssertUI.IsNotSelected(multiselect.Children[0]);
+                AssertUI.IsSelected(multiselect.Children[1]);
+                AssertUI.IsSelected(multiselect.Children[2]);
+                AssertUI.InnerTextEquals(selectedValues, "2 3");
             });
         }
     }
